@@ -10,7 +10,8 @@ using LinearAlgebra
 # Nonlinear problem
 function f1(du, u, p)
     du[1] = u[1]^2 - 2.0
-    return du[2] = u[2] - u[1]
+    du[2] = u[2] - u[1]
+    return
 end
 explicitfun1(p, sols) = nothing
 prob1 = NonlinearProblem(
@@ -26,7 +27,8 @@ explicitfun2(p, sols) = nothing
 # Another nonlinear problem
 function f3(du, u, p)
     du[1] = u[1] + u[2] - 3.0
-    return du[2] = u[1] * u[2] - 2.0
+    du[2] = u[1] * u[2] - 2.0
+    return
 end
 explicitfun3(p, sols) = nothing
 prob3 = NonlinearProblem(

@@ -40,7 +40,7 @@ Let's say you have a Sparse Jacobian Prototype `jac_prototype`, in this case you
 create your problem as follows:
 
 ```julia
-prob = NonlinearProblem(NonlinearFunction(nlfunc; jac_prototype = jac_prototype), x0)
+prob = NonlinearProblem(NonlinearFunction(nlfunc; jac_prototype), x0)
 ```
 
 NonlinearSolve will automatically perform matrix coloring and use sparse differentiation.
@@ -48,8 +48,7 @@ NonlinearSolve will automatically perform matrix coloring and use sparse differe
 Now you can help the solver further by providing the color vector. This can be done by
 
 ```julia
-prob = NonlinearProblem(
-    NonlinearFunction(nlfunc; jac_prototype = jac_prototype, colorvec = colorvec), x0)
+prob = NonlinearProblem(NonlinearFunction(nlfunc; jac_prototype, colorvec), x0)
 ```
 
 If the `colorvec` is not provided, then it is computed on demand.
@@ -68,10 +67,14 @@ algorithm you want to use, then you can create your problem as follows:
 
 ```julia
 prob = NonlinearProblem(
-    NonlinearFunction(nlfunc; sparsity = SymbolicsSparsityDetector()), x0)  # Remember to have Symbolics.jl loaded
+    NonlinearFunction(nlfunc; sparsity = SymbolicsSparsityDetector()), # Remember to have Symbolics.jl loaded
+    x0
+)
 # OR
 prob = NonlinearProblem(
-    NonlinearFunction(nlfunc; sparsity = TracerSparsityDetector()), x0) # From SparseConnectivityTracer.jl
+    NonlinearFunction(nlfunc; sparsity = TracerSparsityDetector()), # From SparseConnectivityTracer.jl
+    x0
+)
 ```
 
 Refer to the documentation of DifferentiationInterface.jl and SparseConnectivityTracer.jl

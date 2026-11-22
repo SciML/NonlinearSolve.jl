@@ -7,9 +7,11 @@ solve(prob::NonlinearLeastSquaresProblem, alg; kwargs...)
 Solves the nonlinear least squares problem defined by `prob` using the algorithm
 `alg`. If no algorithm is given, a default algorithm will be chosen.
 
+For problems with `lb` or `ub`, see [Bounded Solvers](@ref bounded-solvers).
+
 ## Recommended Methods
 
-The default method [`FastShortcutNLLSPolyalg`](@ref) is a good choice for most problems. It
+For unbounded problems, the default method [`FastShortcutNLLSPolyalg`](@ref) is a good choice. It
 is a polyalgorithm that attempts to use a fast algorithm ([`GaussNewton`](@ref)) and if that
 fails it falls back to a more robust algorithms ([`LevenbergMarquardt`](@ref),
 [`TrustRegion`](@ref)).
@@ -23,8 +25,16 @@ fails it falls back to a more robust algorithms ([`LevenbergMarquardt`](@ref),
     large-scale and numerically-difficult nonlinear systems.
   - [`GaussNewton()`](@ref): A Gauss-Newton method with swappable nonlinear solvers and
     autodiff methods for high performance on large and sparse systems.
-  - [`TrustRegion()`](@ref): A Newton Trust Region dogleg method with swappable nonlinear
+  - [`TrustRegion()`](@ref): A Newton trust-region method with swappable nonlinear
     solvers and autodiff methods for high performance on large and sparse systems.
+    The default `TrustRegionSubproblem.More` solves the trust-region subproblem nearly
+    exactly via Moré's safeguarded iteration (MINPACK `lmpar`-style), which is more
+    robust on ill-conditioned and rank-deficient least-squares problems;
+    [`TrustRegionDogleg()`](@ref) selects the classical polygonal dogleg
+    approximation. [`TrustRegionRobust()`](@ref) solves the damped system on the
+    rectangular augmented form `[J; √λD]` via a rank-revealing column-pivoted
+    sparse QR for sparse-structured Jacobians — the conditioning-preserving
+    choice when forming `JᵀJ` would square away too much accuracy.
 
 ### SimpleNonlinearSolve.jl
 

@@ -4,3 +4,13 @@
 @safetestset "NLLS with a non-finite residual does not report success" include(
     "least_squares_tests__item4.jl"
 )
+@safetestset "Rank-deficient overdetermined NLLS" include("least_squares_tests__item5.jl")
+@safetestset "Moré trust-region subproblem on hard NLLS" include(
+    "least_squares_tests__item6.jl"
+)
+@safetestset "Trust region shrinks away from a nonfinite residual region" include(
+    "least_squares_tests__item7.jl"
+)
+@safetestset "Moré trust-region subproblem on underdetermined NLLS" include(
+    "least_squares_tests__item8.jl"
+)

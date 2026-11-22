@@ -21,7 +21,7 @@ probs = [
     ),
     NonlinearLeastSquaresProblem(
         NonlinearFunction{false}(
-            loss_function; resid_prototype = zero(y_target), jac = jac
+            loss_function; resid_prototype = zero(y_target), jac
         ),
         θ_init, x
     ),

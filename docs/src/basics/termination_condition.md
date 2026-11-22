@@ -10,7 +10,7 @@ termination modes:
 The termination condition is constructed as:
 
 ```julia
-cache = init(du, u, AbsNormSafeBestTerminationMode(); abstol = 1e-9, reltol = 1e-9)
+cache = init(du, u, AbsNormSafeBestTerminationMode(); abstol = 1.0e-9, reltol = 1.0e-9)
 ```
 
 If `abstol` and `reltol` are not supplied, then we choose a default based on the element

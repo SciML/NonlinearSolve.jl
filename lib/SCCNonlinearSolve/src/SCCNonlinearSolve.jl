@@ -68,6 +68,11 @@ function scc_solve_up(
         kwargs...
     )
     probs = map(_concrete_scc_problem, prob.probs)
+    # Keep the caller's container eltype so homogeneous and heterogeneous
+    # block vectors share one `_scc_solve` instance.
+    if probs isa AbstractVector && all(Base.Fix2(isa, eltype(prob.probs)), probs)
+        probs = copyto!(similar(prob.probs), probs)
+    end
     concrete_prob = SciMLBase.remake(prob; probs)
     return _scc_solve(concrete_prob, alg; kwargs...)
 end
@@ -78,21 +83,10 @@ function _concrete_scc_problem(prob::Union{NonlinearProblem, NonlinearLeastSquar
 end
 _concrete_scc_problem(prob) = prob
 
-probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem}) = prob.u0
+probvec(prob::Union{NonlinearProblem, NonlinearLeastSquaresProblem, SciMLBase.HomotopyProblem}) = prob.u0
 probvec(prob::LinearProblem) = prob.b
 
 iteratively_build_sols(alg, sols; kwargs...) = sols
-
-# SciMLBase ≥ 3.51 appends the return code type to `NonlinearSolution`'s parameters.
-let retcode_param = fieldtype(SciMLBase.NonlinearSolution, :retcode) === SciMLBase.ReturnCode.T ?
-        () : (SciMLBase.ReturnCode.T,)
-    @eval function nonlinear_solution_type(::Type{T}, ::Type{uType}, ::Type{rType}) where {T, uType, rType}
-        return SciMLBase.NonlinearSolution{
-            T, 1, uType, rType, NamedTuple{(:p,), Tuple{Nothing}},
-            Nothing, Nothing, Nothing, Nothing, Nothing, $(retcode_param...),
-        }
-    end
-end
 
 function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     SciMLBase.invoke_with_despecialized_parameters(
@@ -109,7 +103,7 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         nlprob = NonlinearProblem{true}(Returns(nothing), sol.u, prob.p)
         SciMLBase.strip_solution(
-            SciMLBase.build_solution(nlprob, nothing, sol.u, resid, retcode = sol.retcode)
+            SciMLBase.build_solution(nlprob, nothing, sol.u, resid; sol.retcode)
         )
     else
         # A `HomotopyProblem` block (e.g. a Modelica `homotopy` operator block from
@@ -126,7 +120,7 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
         sol = SciMLBase.solve(prob, blockalg; kwargs...)
         SciMLBase.strip_solution(
             SciMLBase.build_solution(
-                prob, nothing, sol.u, sol.resid, retcode = sol.retcode
+                prob, nothing, sol.u, sol.resid; sol.retcode
             )
         )
     end
@@ -134,15 +128,50 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     return _sol
 end
 
+# Vector-form callers often wrap each `explicitfun` in a `FunctionWrapper` whose
+# second argument is `SubArray{SSol,...}`. Prefer that declared `SSol` for the
+# `sols` buffer so the view converts (SubArray is invariant in its element type).
+function _explicitfun_sols_eltype(FW::Type)
+    FW isa DataType || return nothing
+    nameof(FW) === :FunctionWrapper || return nothing
+    length(FW.parameters) < 2 && return nothing
+    ATs = FW.parameters[2]
+    ATs isa DataType && ATs <: Tuple && length(ATs.parameters) >= 2 || return nothing
+    V = ATs.parameters[2]
+    V isa Type && V <: SubArray || return nothing
+    ET = eltype(V)
+    return ET <: SciMLBase.NonlinearSolution ? ET : nothing
+end
+
+function sols_buffer_eltype(explicitfuns, T, uType, rType)
+    # Opaque callbacks use views with an unspecialized retcode parameter.
+    default = SciMLBase.NonlinearSolution{
+        T, 1, uType, rType,
+        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
+    }
+    # Homogeneous FunctionWrapper vectors hit the eltype fast path; otherwise
+    # scan every element so a legacy wrapper that is not first still wins
+    # (e.g. Any[plain_noop, legacy_FW]).
+    extracted = _explicitfun_sols_eltype(eltype(explicitfuns))
+    if extracted === nothing
+        for f in explicitfuns
+            extracted = _explicitfun_sols_eltype(typeof(f))
+            extracted === nothing || return extracted
+        end
+    end
+    return extracted === nothing ? default : extracted
+end
+
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
     # Compute the stripped solution type deterministically from the first problem.
     # After strip_solution, all NonlinearSolutions have a predictable concrete type
-    # regardless of the original problem/algorithm types.
+    # regardless of the original problem/algorithm types. Prefer a FunctionWrapper's
+    # declared SubArray element type when present so legacy signatures keep converting.
     prob1 = first(probs)
     uType = typeof(probvec(prob1))
     T = eltype(uType)
     rType = uType  # resid has same type as u for nonlinear problems
-    ST = nonlinear_solution_type(T, uType, rType)
+    ST = sols_buffer_eltype(explicitfuns, T, uType, rType)
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
         sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST
@@ -177,13 +206,11 @@ function iteratively_build_sols(alg, sols, (prob, explicitfun), args...; kwargs.
         # LinearSolution may have resid=nothing, so compute it: resid = A*u - b
         resid = isnothing(sol.resid) ? A * sol.u - b : sol.resid
         SciMLBase.build_linear_solution(
-            alg.linalg, sol.u, resid, nothing, retcode = sol.retcode
+            alg.linalg, sol.u, resid, nothing; sol.retcode
         )
     else
         sol = SciMLBase.solve(prob, alg.nlalg; kwargs...)
-        SciMLBase.build_solution(
-            prob, nothing, sol.u, sol.resid, retcode = sol.retcode
-        )
+        SciMLBase.build_solution(prob, nothing, sol.u, sol.resid; sol.retcode)
     end
 
     return iteratively_build_sols(alg, (sols..., _sol), args...; kwargs...)

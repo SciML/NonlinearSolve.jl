@@ -224,9 +224,10 @@ sol_pos.retcode, sol_pos.u
 ### Correctors on bounded problems
 
 For simple box bounds, prefer the native `lb`/`ub` support described in the
-[bound constraints tutorial](bound_constraints.md). The two compose, but bounds are
-handled by reparameterizing the iterate to an unconstrained variable, so there are two
-different things a corrector could mean — and which one you get is an option:
+[bound constraints tutorial](bound_constraints.md). With a `postcondition`, the bounded
+default uses `BoundedTrustRegion`, which applies the corrector in the original coordinates.
+If you explicitly choose an algorithm such as `NewtonRaphson`, bounds are handled by
+reparameterizing the iterate. You can then choose which coordinates the corrector sees:
 
 ```@example preconditioning
 prob_bounded = NonlinearProblem(

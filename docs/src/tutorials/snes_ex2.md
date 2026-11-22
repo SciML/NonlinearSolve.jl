@@ -19,7 +19,7 @@ u0 = fill(0.5, 128)
 function form_residual!(resid, x, _)
     n = length(x)
     xp = LinRange(0.0, 1.0, n)
-    F = 6xp .+ (xp .+ 1e-12) .^ 6
+    F = 6xp .+ (xp .+ 1.0e-12) .^ 6
 
     dx = 1 / (n - 1)
     resid[1] = x[1]
@@ -39,7 +39,8 @@ details.
 ```@example snes_ex2
 nlfunc_dense = NLS.NonlinearFunction(form_residual!)
 nlfunc_sparse = NLS.NonlinearFunction(
-    form_residual!; sparsity = SparseConnectivityTracer.TracerSparsityDetector())
+    form_residual!; sparsity = SparseConnectivityTracer.TracerSparsityDetector()
+)
 
 nlprob_dense = NLS.NonlinearProblem(nlfunc_dense, u0)
 nlprob_sparse = NLS.NonlinearProblem(nlfunc_sparse, u0)
@@ -49,14 +50,14 @@ Now we can solve the problem using `PETScSNES` or with one of the native `Nonlin
 solvers.
 
 ```@example snes_ex2
-sol_dense_nr = NLS.solve(nlprob_dense, NLS.NewtonRaphson(); abstol = 1e-8)
-sol_dense_snes = NLS.solve(nlprob_dense, NLS.PETScSNES(); abstol = 1e-8)
+sol_dense_nr = NLS.solve(nlprob_dense, NLS.NewtonRaphson(); abstol = 1.0e-8)
+sol_dense_snes = NLS.solve(nlprob_dense, NLS.PETScSNES(); abstol = 1.0e-8)
 sol_dense_nr .- sol_dense_snes
 ```
 
 ```@example snes_ex2
-sol_sparse_nr = NLS.solve(nlprob_sparse, NLS.NewtonRaphson(); abstol = 1e-8)
-sol_sparse_snes = NLS.solve(nlprob_sparse, NLS.PETScSNES(); abstol = 1e-8)
+sol_sparse_nr = NLS.solve(nlprob_sparse, NLS.NewtonRaphson(); abstol = 1.0e-8)
+sol_sparse_snes = NLS.solve(nlprob_sparse, NLS.PETScSNES(); abstol = 1.0e-8)
 sol_sparse_nr .- sol_sparse_snes
 ```
 
@@ -68,19 +69,19 @@ runtimes.
 ### Dense Jacobian
 
 ```@example snes_ex2
-@benchmark NLS.solve($(nlprob_dense), $(NLS.NewtonRaphson()); abstol = 1e-8)
+@benchmark NLS.solve($(nlprob_dense), $(NLS.NewtonRaphson()); abstol = 1.0e-8)
 ```
 
 ```@example snes_ex2
-@benchmark NLS.solve($(nlprob_dense), $(NLS.PETScSNES()); abstol = 1e-8)
+@benchmark NLS.solve($(nlprob_dense), $(NLS.PETScSNES()); abstol = 1.0e-8)
 ```
 
 ### Sparse Jacobian
 
 ```@example snes_ex2
-@benchmark NLS.solve($(nlprob_sparse), $(NLS.NewtonRaphson()); abstol = 1e-8)
+@benchmark NLS.solve($(nlprob_sparse), $(NLS.NewtonRaphson()); abstol = 1.0e-8)
 ```
 
 ```@example snes_ex2
-@benchmark NLS.solve($(nlprob_sparse), $(NLS.PETScSNES()); abstol = 1e-8)
+@benchmark NLS.solve($(nlprob_sparse), $(NLS.PETScSNES()); abstol = 1.0e-8)
 ```

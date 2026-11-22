@@ -53,12 +53,16 @@ function explicitfun2_raw(p, sols)
 end
 
 # Wrap explicitfuns with FunctionWrapper for type unification.
-# The stripped solution type is deterministic — compute it from u0 type.
-uType = Vector{Float64}
-SSol = SciMLBase.NonlinearSolution{
-    Float64, 1, uType, uType,
-    NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
-}
+# Derive the concrete stripped element type from public solve + strip_solution
+# so the SubArray signature matches the sols buffer under either SciMLBase layout.
+_probe_sol = solve(prob1, NewtonRaphson(; autodiff = AutoFiniteDiff()))
+SSol = typeof(
+    SciMLBase.strip_solution(
+        SciMLBase.build_solution(
+            prob1, nothing, _probe_sol.u, _probe_sol.resid; _probe_sol.retcode
+        )
+    )
+)
 SolsView = SubArray{SSol, 1, Vector{SSol}, Tuple{UnitRange{Int64}}, true}
 EFW = FunctionWrapper{Nothing, Tuple{Vector{Float64}, SolsView}}
 ef1_wrapped = EFW(explicitfun1_raw)
@@ -111,7 +115,8 @@ function f_full(du, u, p)
     du[2] = sin(u[1] + u[2]) + u[2]
     du[3] = 2u[4] + u[3] + u[1]
     du[4] = u[5]^2 + u[4]
-    return du[5] = u[3]^2 + u[5]
+    du[5] = u[3]^2 + u[5]
+    return
 end
 ref_prob = NonlinearProblem(f_full, zeros(5))
 ref_sol = solve(ref_prob, NewtonRaphson())

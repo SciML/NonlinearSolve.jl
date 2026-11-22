@@ -63,7 +63,8 @@ function check_termination(cache, fx, x, xo, prob)
 end
 
 function check_termination(cache, fx, x, xo, _, ::AbstractNonlinearTerminationMode)
-    return cache(fx, x, xo), ReturnCode.Success, fx, x
+    solved = cache(fx, x, xo)
+    return solved, ifelse(solved, cache.retcode, ReturnCode.Default), fx, x
 end
 function check_termination(cache, fx, x, xo, _, ::AbstractSafeNonlinearTerminationMode)
     return cache(fx, x, xo), cache.retcode, fx, x
@@ -196,6 +197,14 @@ function compute_hvvp(prob, autodiff, fx, x, dir)
     else
         @closure (u, p) -> only(DI.pushforward(prob.f, autodiff, u, (dir,), Constant(p)))
     end
+    if ReactantCore.within_compile()
+        # An output buffer gives Enzyme an explicit return activity for the nested pushforward.
+        function jvp!(out, u, p)
+            copyto!(out, jvp_fn(u, p))
+            return nothing
+        end
+        return only(DI.pushforward(jvp!, similar(fx), autodiff, x, (dir,), Constant(prob.p)))
+    end
     return only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
 end
 
@@ -214,7 +223,8 @@ traced under Reactant, and each array in `xs` is made distinct from every other 
 `(retcode, iterations, xs...)`.
 """
 function init_loop_state(retcode, xs...)
-    return NonlinearSolveBase.maybe_traced(retcode), NonlinearSolveBase.maybe_traced(0),
+    code = retcode isa ReturnCode.T ? NonlinearSolveBase.maybe_traced(retcode) : retcode
+    return code, NonlinearSolveBase.maybe_traced(0),
         map(fresh, xs)...
 end
 

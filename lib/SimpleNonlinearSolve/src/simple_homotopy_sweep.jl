@@ -1,9 +1,11 @@
 """
-    SimpleHomotopySweep(; inner = SimpleNewtonRaphson(), nsteps = nothing,
+    SimpleHomotopySweep(;
+        inner = SimpleNewtonRaphson(), nsteps = nothing,
         adaptive = true, initial_step_factor = 0.1, min_dλ = nothing,
         max_step_factor = 1.0, expand_factor = 2.0, expand_threshold = 2,
         expand_quality = 0.25, predictor = :secant, tracking_maxiters = 10,
-        tracking_abstol = nothing, maxsteps = 10000)
+        tracking_abstol = nothing, maxsteps = 10000
+    )
 
 Natural-parameter continuation solver for a `SciMLBase.HomotopyProblem`, the
 SimpleNonlinearSolve counterpart of `HomotopySweep`. The algorithm is the same —
@@ -192,8 +194,7 @@ function _simple_sweep_nonlinear_function(::Val{iip}, f, λfix) where {iip}
     end
     jac = f.jac === nothing ? nothing : SimpleFixLambda(f.jac, λfix)
     return NonlinearFunction{iip}(
-        SimpleFixLambda(f, λfix); jac, jac_prototype = f.jac_prototype,
-        sparsity = f.sparsity, colorvec = f.colorvec
+        SimpleFixLambda(f, λfix); jac, f.jac_prototype, f.sparsity, f.colorvec
     )
 end
 
@@ -278,7 +279,7 @@ function CommonSolve.solve(
     if !SciMLBase.successful_retcode(last_sol)
         return SciMLBase.build_solution(
             prob, alg, u, last_sol.resid;
-            retcode = last_sol.retcode, original = last_sol
+            last_sol.retcode, original = last_sol
         )
     end
     u = _simple_sweep_guess(last_sol.u)
@@ -400,7 +401,7 @@ function CommonSolve.solve(
         else
             return SciMLBase.build_solution(
                 prob, alg, u, last_sol.resid;
-                retcode = last_sol.retcode, original = last_sol
+                last_sol.retcode, original = last_sol
             )
         end
     end

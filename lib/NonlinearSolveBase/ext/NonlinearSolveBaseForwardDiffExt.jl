@@ -234,21 +234,7 @@ function NonlinearSolveBase.nonlinearsolve_∂f_∂u(prob, f::F, u, p) where {F}
     return ForwardDiff.jacobian(Base.Fix2(f, p), u)
 end
 
-_forwarddiff_implicit_solve(A::Number, B) = A \ B
-
-function _forwarddiff_implicit_solve(A, B)
-    Utils.is_extension_loaded(Val(:LinearSolve)) || return A \ B
-
-    T = promote_type(typeof(oneunit(eltype(A)) / oneunit(eltype(A))), eltype(B))
-    u = similar(B, T, size(B))
-    lincache = NonlinearSolveBase.construct_linear_solver(
-        nothing, nothing, A, B, u, nothing;
-        stats = SciMLBase.NLStats(0, 0, 0, 0, 0), verbose = false
-    )
-    linres = lincache()
-    linres.success || error("Linear solve failed while differentiating a nonlinear solve.")
-    return linres.u
-end
+_forwarddiff_implicit_solve(A, B) = NonlinearSolveBase.implicit_sensitivity_solve(A, B)
 
 function NonlinearSolveBase.nonlinearsolve_dual_solution(
         u::Number, partials,

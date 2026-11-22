@@ -47,6 +47,10 @@ function SciMLBase.__solve(
     T = promote_type(eltype(fx), eltype(x))
 
     solved = iszero(fx)
+    compiling = ReactantCore.within_compile()
+    if !compiling && solved
+        return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+    end
 
     abstol, reltol,
         tc_cache = NonlinearSolveBase.init_termination_cache(
@@ -100,12 +104,14 @@ function SciMLBase.__solve(
                 x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
             fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
 
-            @bb @. x += ifelse(solved, zero(cᵢ), cᵢ)
-            @bb copyto!(xo, x)
-            xo = Utils.fresh(xo)
+            if compiling || !solved
+                @bb @. x += ifelse(solved, zero(cᵢ), cᵢ)
+                @bb copyto!(xo, x)
+                xo = Utils.fresh(xo)
 
-            fx = NLBUtils.evaluate_f!!(prob, fx, x)
-            J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+                fx = NLBUtils.evaluate_f!!(prob, fx, x)
+                J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+            end
         end
         iterations += 1
     end

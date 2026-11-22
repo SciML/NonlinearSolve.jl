@@ -103,7 +103,7 @@ on Reactant support in their configured differentiation backend; NonlinearSolve.
 provide Reactant-specific differentiation overloads.
 
 The returned solution is an ordinary `NonlinearSolution`. `u` and `resid` are device
-arrays, and `retcode` is a device scalar (`ConcreteRNumber{ReturnCode.T}`) that can be
+arrays, and `retcode` is a `Reactant.ConcreteEnum{ReturnCode.T}` that can be
 compared against `ReturnCode` values or converted with `ReturnCode.T(sol.retcode)`;
 `SciMLBase.successful_retcode(sol)` works as usual. `stats` is `nothing`, since `NLStats`
 counts host evaluations, which inside a compiled program only happen once while tracing,

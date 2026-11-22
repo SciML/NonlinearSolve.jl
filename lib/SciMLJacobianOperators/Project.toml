@@ -1,6 +1,6 @@
 name = "SciMLJacobianOperators"
 uuid = "19f34311-ddf3-4b8b-af20-060888a46c0e"
-version = "0.1.19"
+version = "0.1.21"
 authors = ["Avik Pal <avikpal@mit.edu> and contributors"]
 
 [deps]
@@ -26,7 +26,9 @@ FiniteDiff = "2.24"
 ForwardDiff = "1"
 InteractiveUtils = "<0.0.1, 1"
 LinearAlgebra = "1.10"
+RecursiveArrayTools = "3.27, 4"
 ReverseDiff = "1.15"
+StaticArrays = "1.9.8"
 SciMLBase = "3"
 SciMLOperators = "1.24"
 Test = "1.10"
@@ -41,7 +43,9 @@ Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+RecursiveArrayTools = "731186ca-8d62-57ce-b412-fbd966d074cd"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
@@ -49,4 +53,4 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 [targets]
-test = ["Enzyme", "FiniteDiff", "ForwardDiff", "InteractiveUtils", "ReverseDiff", "Test", "Tracker", "Zygote", "SafeTestsets", "SciMLTesting"]
+test = ["Enzyme", "FiniteDiff", "ForwardDiff", "InteractiveUtils", "RecursiveArrayTools", "ReverseDiff", "StaticArrays", "Test", "Tracker", "Zygote", "SafeTestsets", "SciMLTesting"]

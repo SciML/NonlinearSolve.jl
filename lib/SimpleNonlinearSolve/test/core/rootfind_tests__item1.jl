@@ -53,3 +53,29 @@ include("setup_rootfindtestsnippet.jl")
         end
     end
 end
+
+@testset "Accepted-point Jacobian" begin
+    f!(du, u, p) = (du .= u .^ 2 .- 2)
+    jac!(J, u, p) = (J[1, 1] = 2 * only(u))
+    prob = NonlinearProblem(NonlinearFunction{true}(f!; jac = jac!), [0.5])
+    sol = solve(prob, SimpleTrustRegion(; initial_trust_radius = 5.0, max_trust_radius = 100.0); maxiters = 40, abstol = 1.0e-10)
+    @test sol.retcode == ReturnCode.Success
+    @test only(sol.u) ≈ sqrt(2)
+end
+
+@testset "Exact initial root" begin
+    f(u, p) = abs.(u)
+    jac(u, p) = error("Jacobian undefined at zero")
+    prob = NonlinearProblem(NonlinearFunction{false}(f; jac), [0.0])
+    @testset for alg in (SimpleNewtonRaphson(), SimpleHalley())
+        sol = solve(prob, alg)
+        @test sol.retcode == ReturnCode.Success
+        @test sol.u == [0.0]
+    end
+end
+
+@testset "Shrink limit at a converged trial" begin
+    prob = NonlinearProblem((u, p) -> u - 1, 0.0)
+    alg = SimpleTrustRegion(; initial_trust_radius = 2.0, shrink_threshold = 2.0, max_shrink_times = 0)
+    @test solve(prob, alg).retcode == ReturnCode.ShrinkThresholdExceeded
+end

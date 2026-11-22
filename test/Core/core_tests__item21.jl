@@ -18,7 +18,7 @@ function (precs::DummyPreconditioners)(W, p = nothing)
 end
 # Check if it works in principle
 precs = DummyPreconditioners(0, 0)
-iter = init(prob, NewtonRaphson(linsolve = KrylovJL_GMRES(precs = precs), concrete_jac = false))
+iter = init(prob, NewtonRaphson(linsolve = KrylovJL_GMRES(; precs), concrete_jac = false))
 iinit = precs.i
 solve!(iter)
 @test precs.i > 0

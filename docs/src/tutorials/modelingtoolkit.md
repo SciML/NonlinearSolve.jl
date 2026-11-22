@@ -18,9 +18,11 @@ MTK.@mtkbuild ns = MTK.NonlinearSystem(eqs, [x, y, z], [σ, ρ, β])
 
 u0 = [x => 1.0, y => 0.0, z => 0.0]
 
-ps = [σ => 10.0
-      ρ => 26.0
-      β => 8 / 3]
+ps = [
+    σ => 10.0
+    ρ => 26.0
+    β => 8 / 3
+]
 
 prob = NLS.NonlinearProblem(ns, u0, ps)
 sol = NLS.solve(prob, NLS.NewtonRaphson())
@@ -57,8 +59,10 @@ solved more simply. Let's take a look at a quick system:
 
 ```julia
 MTK.@variables u1 u2 u3 u4 u5
-eqs = [0 ~ u1 - sin(u5), 0 ~ u2 - cos(u1), 0 ~ u3 - hypot(u1, u2),
-    0 ~ u4 - hypot(u2, u3), 0 ~ u5 - hypot(u4, u1)]
+eqs = [
+    0 ~ u1 - sin(u5), 0 ~ u2 - cos(u1), 0 ~ u3 - hypot(u1, u2),
+    0 ~ u4 - hypot(u2, u3), 0 ~ u5 - hypot(u4, u1),
+]
 MTK.@named sys = MTK.NonlinearSystem(eqs, [u1, u2, u3, u4, u5], [])
 ```
 

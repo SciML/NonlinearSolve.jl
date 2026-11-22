@@ -82,7 +82,8 @@ end
 
 f! = function (du, u, p)
     du[1] = u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1
-    return du[2] = u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]
+    du[2] = u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]
+    return
 end
 
 f = function (u, p)
@@ -93,7 +94,8 @@ jac! = function (j, u, p)
     j[1, 1] = 2u[1]
     j[1, 2] = -p[1] + 3 * u[2]^2
     j[2, 1] = 2 * p[2] * u[2]
-    return j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
+    j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
+    return
 end
 
 jac = function (u, p)

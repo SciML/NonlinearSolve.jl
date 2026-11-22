@@ -5,7 +5,7 @@ end
 
 """
 ```julia
-solve(prob::NonlinearProblem, alg::Union{AbstractNonlinearAlgorithm,Nothing}; kwargs...)
+solve(prob::NonlinearProblem, alg::Union{AbstractNonlinearAlgorithm, Nothing}; kwargs...)
 ```
 
 ## Arguments
@@ -51,9 +51,9 @@ These tolerances are interpreted by the termination condition.
   runs before a cache exists — and correctors that do not need solver state simply ignore
   it. `H` must satisfy `H(u, u, p, cache) = u` at solutions so that roots are unchanged.
 
-  On a problem with `lb`/`ub` bounds the solver iterates on an unconstrained
-  reparameterization of `u`, and `H` is applied in the original bounded variable by
-  default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
+  Native bounded algorithms apply `H` in the original coordinates. When an explicitly
+  selected algorithm uses an unconstrained reparameterization for `lb`/`ub`, `H` is
+  still applied in the original bounded variable by default. Wrap it in a [`PostconditionSpecifier`](@ref) to say otherwise:
   `postcondition = PostconditionSpecifier(H; space = PostconditionSpace.Transformed)`
   applies it to the unconstrained iterate instead.
 
@@ -150,10 +150,10 @@ function solve_up(
     )
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     return if isnothing(alg) || !(alg isa AbstractNonlinearSolveAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         solve_call(_prob, args...; kwargs...)
     else
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         #check_prob_alg_pairing(_prob, alg) # use alg for improved inference
         if length(args) > 1
             solve_call(_prob, alg, Base.tail(args)...; kwargs...)
@@ -177,6 +177,8 @@ function solve_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
 
     # Compose the nonlinear preconditioning options. Done here (in addition to the
     # `__solve`/`init_call` funnels) so that algorithms with their own `__solve` methods
@@ -276,7 +278,7 @@ function init_up(
     )
     alg = extract_alg(args, kwargs, has_kwargs(prob) ? prob.kwargs : kwargs)
     return if isnothing(alg) || !(alg isa AbstractNonlinearAlgorithm) # Default algorithm handling
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         init_call(_prob, args...; kwargs...)
     else
         tstops = get(kwargs, :tstops, nothing)
@@ -287,7 +289,7 @@ function init_up(
                 !SciMLBase.allows_late_binding_tstops(alg)
             throw(LateBindingTstopsNotSupportedError())
         end
-        _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+        _prob = get_concrete_problem(prob; u0, p, kwargs...)
         #check_prob_alg_pairing(_prob, alg) # alg for improved inference
         if length(args) > 1
             init_call(_prob, alg, Base.tail(args)...; kwargs...)
@@ -310,6 +312,8 @@ function init_call(
     end
 
     checkkwargs(kwargshandle; kwargs...)
+
+    _prob = prepare_default_bounds(_prob, length(args) > 0 ? args[1] : nothing)
 
     alg = length(args) > 0 ? args[1] : nothing
 
@@ -417,11 +421,13 @@ function _solution_from_cache(cache::AbstractNonlinearSolveCache; transform_boun
     # BoundedWrapper, map the solution back from unbounded to bounded space.
     if transform_bounds && _has_bounded_wrapper(cache)
         bw = cache.prob.f.f
-        sol.u .= _from_unbounded.(sol.u, bw.lb, bw.ub)
+        u, u0 = sol.u, sol.prob.u0
+        @bb @. u = _from_unbounded(u, bw.lb, bw.ub)
+        @bb @. u0 = _from_unbounded(u0, bw.lb, bw.ub)
+        @set! sol.u = u
 
         # Reset the problem to the original fields that were overwritten
-        @set! sol.prob = remake(sol.prob; f = bw.f, lb = bw.lb, ub = bw.ub)
-        sol.prob.u0 .= _from_unbounded.(sol.prob.u0, bw.lb, bw.ub)
+        @set! sol.prob = remake(sol.prob; bw.f, bw.lb, bw.ub, u0)
     end
 
     return sol
@@ -488,6 +494,9 @@ end
     cache_syms = [gensym("cache") for i in 1:N]
     sol_syms = [gensym("sol") for i in 1:N]
     u_result_syms = [gensym("u_result") for i in 1:N]
+    attempted_syms = [gensym("attempted") for i in 1:N]
+
+    push!(calls, :($(Expr(:block, (:($(s) = false) for s in attempted_syms)...))))
 
     push!(
         calls,
@@ -497,9 +506,9 @@ end
                 return build_solution_less_specialize(
                     cache.prob, cache.alg, u,
                     $(Utils.evaluate_f)(cache.prob, u)::_fuType;
-                    retcode = cache.retcode, stats = cache.stats,
+                    cache.retcode, cache.stats,
                     trace = (cache.caches[1].trace::_traceType),
-                    store_original = cache.alg.store_original
+                    cache.alg.store_original
                 )
             end
         end
@@ -517,6 +526,7 @@ end
         end
         cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
         $(sol_syms[i]) = CommonSolve.solve!($(cache_syms[i]))
+        $(attempted_syms[i]) = true
         if SciMLBase.successful_retcode($(sol_syms[i])) &&
                 $(sol_syms[i]).retcode != ReturnCode.StalledSuccess
             stats = $(sol_syms[i]).stats
@@ -582,10 +592,12 @@ end
         )
     end
 
+    # Only subcaches attempted in this call are fallback candidates: the others hold
+    # residuals from `init`/`reinit!` (or a previous solve) and, with `alias_u0`, have
+    # no saved iterate.
     resids = map(Base.Fix2(Symbol, :resid), cache_syms)
-    for (sym, resid) in zip(cache_syms, resids)
-        # Use get_fu instead of accessing .resid directly since caches have `fu`, not `resid`
-        push!(calls, :($(resid) = @isdefined($(sym)) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
+    for (sym, attempted, resid) in zip(cache_syms, attempted_syms, resids)
+        push!(calls, :($(resid) = $(attempted) ? NonlinearSolveBase.get_fu($(sym)) : nothing))
     end
     push!(
         calls, quote
@@ -608,7 +620,7 @@ end
     push!(
         calls,
         quote
-            retcode = cache.caches[idx].retcode
+            retcode = cache.caches[idx].retcode::ReturnCode.T
             if cache.alias_u0
                 copyto!(cache.u0, u)
                 u = cache.u0
@@ -617,7 +629,7 @@ end
             return build_solution_less_specialize(
                 cache.prob, cache.alg, u::_uType, fus[idx]::_fuType;
                 retcode, cache.stats, trace = _trace,
-                store_original = cache.alg.store_original
+                cache.alg.store_original
             )
         end
     )
@@ -633,49 +645,7 @@ function SciMLBase.__solve(
         prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm,
         args...; kwargs...
     )
-    ReactantCore.within_compile() && return _traced_polysolve(prob, alg, args...; kwargs...)
     return __generated_polysolve(prob, alg, args...; kwargs...)
-end
-
-# Under Reactant every algorithm of the polyalgorithm is compiled; at run time a later one
-# only executes when none of the earlier ones succeeded, and the smallest residual seen is
-# kept as the fallback, mirroring `__generated_polysolve`. The splat is not called `args`:
-# `ReactantCore.@trace if` binds its captured variables through a parameter of that name.
-function _traced_polysolve(
-        prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}}, solve_args...;
-        initializealg = NonlinearSolveDefaultInit(), kwargs...
-    ) where {N}
-    prob, success = run_initialization!(prob, initializealg, prob)
-    if !success
-        u = SII.state_values(prob)
-        return SciMLBase.build_solution(
-            prob, alg, u, Utils.evaluate_f(prob, u); retcode = ReturnCode.InitialFailure
-        )
-    end
-    sol = SciMLBase.__solve(prob, alg.algs[alg.start_index], solve_args...; kwargs...)
-    u, resid, retcode = sol.u, sol.resid, sol.retcode
-    best_norm = _poly_resid_norm(prob, resid)
-    done = _poly_success(retcode)
-    for i in (alg.start_index + 1):N
-        alg_i = alg.algs[i]
-        # The branch assigns only the loop state: a solution object as branch output would
-        # have to be materialized for the untaken side as well.
-        ReactantCore.@trace track_numbers = false if !done
-            u, resid, retcode, best_norm, done = _traced_polysolve_member(
-                prob, alg_i, solve_args, kwargs, u, resid, retcode, best_norm
-            )
-        end
-    end
-    return build_nonlinear_solution(prob, alg, u, resid; retcode)
-end
-
-function _traced_polysolve_member(prob, alg, solve_args, kwargs, u, resid, retcode, best_norm)
-    sol = SciMLBase.__solve(prob, alg, solve_args...; kwargs...)
-    success = _poly_success(sol.retcode)
-    resid_norm = _poly_resid_norm(prob, sol.resid)
-    better = success | (resid_norm < best_norm)
-    return select(better, sol.u, u), select(better, sol.resid, resid),
-        ifelse(better, sol.retcode, retcode), ifelse(better, resid_norm, best_norm), success
 end
 
 function _poly_success(retcode)
@@ -688,6 +658,96 @@ function _poly_resid_norm(prob::AbstractNonlinearProblem, resid)
     fx = prob isa NonlinearLeastSquaresProblem ? sqrt(sum(abs2, resid)) :
         maximum(abs, resid)
     return ifelse(isnan(fx), oftype(fx, Inf), fx)
+end
+
+# Compile fallthrough for `__generated_polysolve`: same member chain and
+# `store_original` handling as the host early-return path. Entered only through
+# `within_compile()` inside that generated driver (not a separate `__solve`).
+function _polysolve_compile_path(
+        prob::AbstractNonlinearProblem, alg::NonlinearSolvePolyAlgorithm{Val{N}},
+        solve_args...;
+        stats = NLStats(0, 0, 0, 0, 0),
+        alias = NonlinearAliasSpecifier(alias_u0 = false),
+        verbose = NonlinearVerbosity(),
+        initializealg = NonlinearSolveDefaultInit(),
+        kwargs...
+    ) where {N}
+    alias_u0 = alias isa NonlinearAliasSpecifier ? alias.alias_u0 : false
+    if alias_u0 && !ArrayInterface.ismutable(prob.u0)
+        alias_u0 = false
+    end
+    # Heterogeneous member `NonlinearSolution` types cannot be `select`ed under
+    # Reactant when `store_original=Val(true)` needs the winning member payload.
+    if alg.store_original isa Val{true} && N > 1
+        throw(
+            ArgumentError(
+                "NonlinearSolvePolyAlgorithm with store_original=Val(true) and more \
+                 than one member is not supported under Reactant compilation; use a \
+                 single-member polyalgorithm or store_original=Val(false)."
+            )
+        )
+    end
+
+    prob, success = run_initialization!(prob, initializealg, prob)
+    if !success
+        u = SII.state_values(prob)
+        return build_solution_less_specialize(
+            prob, alg, u, Utils.evaluate_f(prob, u);
+            retcode = ReturnCode.InitialFailure, alg.store_original
+        )
+    end
+
+    u0 = prob.u0
+    u0_aliased = alias_u0 ? zero(u0) : u0
+    member_prob = if alias_u0
+        copyto!(u0_aliased, u0)
+        SciMLBase.remake(prob; u0 = u0_aliased)
+    else
+        prob
+    end
+    best_sol = SciMLBase.__solve(
+        member_prob, alg.algs[alg.start_index], solve_args...;
+        stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
+    )
+    u, resid, retcode = best_sol.u, best_sol.resid, best_sol.retcode
+    best_norm = _poly_resid_norm(prob, resid)
+    done = _poly_success(retcode)
+    # Branch assigns only loop state (u/resid/retcode/…): a `NonlinearSolution`
+    # as `@trace if` output StackOverflows in Reactant `set_mlir_data!`.
+    for i in (alg.start_index + 1):N
+        alg_i = alg.algs[i]
+        alias_u0 && copyto!(member_prob.u0, u0)
+        ReactantCore.@trace track_numbers = false if !done
+            u, resid, retcode, best_norm, done = _polysolve_compile_member(
+                member_prob, alg_i, solve_args, stats, alias_u0, verbose, kwargs,
+                u, resid, retcode, best_norm
+            )
+        end
+    end
+    if alias_u0
+        copyto!(u0, u)
+        u = u0
+    end
+    return build_solution_less_specialize(
+        prob, alg, u, resid;
+        retcode, original = best_sol, alg.store_original
+    )
+end
+
+function _polysolve_compile_member(
+        prob, alg, solve_args, stats, alias_u0, verbose, kwargs,
+        u, resid, retcode, best_norm
+    )
+    sol = SciMLBase.__solve(
+        prob, alg, solve_args...;
+        stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
+    )
+    success = _poly_success(sol.retcode)
+    resid_norm = _poly_resid_norm(prob, sol.resid)
+    better = success | (resid_norm < best_norm)
+    return select(better, sol.u, u), select(better, sol.resid, resid),
+        ifelse(better, sol.retcode, retcode), ifelse(better, resid_norm, best_norm),
+        success
 end
 
 function SciMLBase.__solve(
@@ -740,6 +800,11 @@ end
     u_result_syms = [gensym("u_result") for _ in 1:N]
     calls = [
         quote
+            # One `__solve` entry: host early-returns below; compile uses the
+            # same options/`store_original` via `_polysolve_compile_path`.
+            ReactantCore.within_compile() && return _polysolve_compile_path(
+                prob, alg, args...; stats, alias, verbose, initializealg, kwargs...
+            )
             alias_u0 = alias.alias_u0
             current = alg.start_index
             if alias_u0 && !ArrayInterface.ismutable(prob.u0)
@@ -759,7 +824,7 @@ end
                 return build_solution_less_specialize(
                     prob, alg, u, $(Utils.evaluate_f)(prob, u);
                     retcode = $(ReturnCode.InitialFailure),
-                    store_original = alg.store_original
+                    alg.store_original
                 )
             end
         end
@@ -779,13 +844,13 @@ end
                 if current == $(i)
                     if alias_u0
                         copyto!(u0_aliased, u0)
-                        $(prob_syms[i]) = SciMLBase.remake(prob; u0 = u0_aliased)
+                        $(prob_syms[i]) = @set prob.u0 = u0_aliased
                     else
                         $(prob_syms[i]) = prob
                     end
                     $(cur_sol) = SciMLBase.__solve(
                         $(prob_syms[i]), alg.algs[$(i)], args...;
-                        stats, alias_u0, verbose, kwargs...
+                        stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
                     )
                     if SciMLBase.successful_retcode($(cur_sol)) &&
                             $(cur_sol).retcode !== ReturnCode.StalledSuccess
@@ -799,7 +864,7 @@ end
                             prob, alg, $(u_result_syms[i]), $(cur_sol).resid;
                             $(cur_sol).retcode, $(cur_sol).stats,
                             $(cur_sol).trace, original = $(cur_sol),
-                            store_original = alg.store_original
+                            alg.store_original
                         )
                     elseif alias_u0
                         # For safety we need to maintain a copy of the solution
@@ -838,7 +903,7 @@ end
                         prob, alg, $(u_result_syms[i]), $(sol_syms[i]).resid;
                         $(sol_syms[i]).retcode, $(sol_syms[i]).stats,
                         $(sol_syms[i]).trace, original = $(sol_syms[i]),
-                        store_original = alg.store_original
+                        alg.store_original
                     )
                 end
             end
@@ -907,7 +972,7 @@ function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs..
         InternalAPI.step!(cache, args...; kwargs...)
     end
 
-    cache.stats.nsteps += 1
+    ReactantCore.within_compile() || (cache.stats.nsteps += 1)
     cache.nsteps += 1
 
     if has_time_limit(cache)
@@ -1031,7 +1096,12 @@ function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
             cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode
         )
     end
-    return CommonSolve.solve(cache.prob, cache.alg, cache.args...; cache.kwargs...)
+    # The initialization pipeline already ran during `init`; the inner solve must
+    # not run it a second time.
+    return CommonSolve.solve(
+        cache.prob, cache.alg, cache.args...;
+        initializealg = SciMLBase.NoInit(), cache.kwargs...
+    )
 end
 
 
@@ -1044,7 +1114,7 @@ function _solve_adjoint(
         kwargs...
     )
     alg = extract_alg(args, kwargs, prob.kwargs)
-    _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+    _prob = get_concrete_problem(prob; u0, p, kwargs...)
 
     # The inner sensitivity calculation needs the concrete parameter layout to
     # differentiate non-Tunable SciMLStructure fields. The outer AD rules restore
@@ -1082,7 +1152,7 @@ function _solve_forward(
         kwargs...
     )
     alg = extract_alg(args, kwargs, prob.kwargs)
-    _prob = get_concrete_problem(prob; u0 = u0, p = p, kwargs...)
+    _prob = get_concrete_problem(prob; u0, p, kwargs...)
 
     if has_kwargs(_prob)
         # `::NamedTuple` assert keeps dispatch off the invalidation-prone `merge(::Any, ::Pairs)` path
@@ -1129,7 +1199,7 @@ function get_concrete_problem(prob::NonlinearProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    prob = remake(prob; u0, p, prob.lb, prob.ub)
     return maybe_wrap_f(prob)
 end
 
@@ -1142,7 +1212,7 @@ function get_concrete_problem(prob::NonlinearLeastSquaresProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    prob = remake(prob; u0 = u0, p = p, lb = prob.lb, ub = prob.ub)
+    prob = remake(prob; u0, p, prob.lb, prob.ub)
     return maybe_wrap_f(prob)
 end
 
@@ -1150,7 +1220,7 @@ function get_concrete_problem(prob::ImmutableNonlinearProblem; kwargs...)
     u0 = get_concrete_u0(prob, true, nothing, kwargs)
     u0 = promote_u0(u0, prob.p, nothing)
     p = get_concrete_p(prob, kwargs)
-    prob = remake(prob; u0 = u0, p = p)
+    prob = remake(prob; u0, p)
     return maybe_wrap_f(prob)
 end
 
@@ -1163,7 +1233,7 @@ function get_concrete_problem(prob::SteadyStateProblem; kwargs...)
     p = get_concrete_p(prob, kwargs)
     u0 = get_concrete_u0(prob, true, Inf, kwargs)
     u0 = promote_u0(u0, p, nothing)
-    return remake(prob; u0 = u0, p = p)
+    return remake(prob; u0, p)
 end
 
 

@@ -220,3 +220,16 @@ reactant_solver_cases = (
     @test Array(sol.u) ≈ fill(sqrt(2.0f0), 2)
     @test maximum(abs, Array(sol.resid)) ≤ 1.0f-5
 end
+
+@testset "SimpleTrustRegion rejects the first trial" begin
+    function solve_rejected(u, p)
+        f(u, p) = u .^ 2 .- p
+        jac(u, p) = reshape(2 .* u, 1, 1)
+        prob = NonlinearProblem(NonlinearFunction(f; jac), u, p)
+        alg = SimpleTrustRegion(; initial_trust_radius = 5.0f0, max_trust_radius = 100.0f0)
+        return solve(prob, alg; abstol = 1.0f-6, maxiters = 40)
+    end
+    sol = Reactant.@jit solve_rejected(Reactant.to_rarray(Float32[0.5]), Reactant.to_rarray(Float32[2]))
+    @test sol.retcode == ReturnCode.Success
+    @test only(Array(sol.u)) ≈ sqrt(2.0f0)
+end

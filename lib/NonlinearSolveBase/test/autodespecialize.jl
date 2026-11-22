@@ -125,6 +125,32 @@ end
     end
 end
 
+function vector_residual!(resid, u, p)
+    resid[1] = u[1]^2 - p[1]
+    return nothing
+end
+
+@testset "unwrapped problem keeps concrete parameters and raw callables" begin
+    # Under `AutoSpecialize`, concretization would wrap the residual again for either
+    # parameter type; `AutoDespecialize` would also wrap the parameters.
+    for (residual, jac, p) in (
+            (dynamic_residual!, dynamic_jacobian!, DynamicParameters(2.0)),
+            (vector_residual!, nothing, [2.0]),
+        )
+        f = NonlinearFunction{true, SciMLBase.AutoDespecialize}(residual; jac)
+        prob = NonlinearSolveBase.get_concrete_problem(NonlinearProblem(f, [1.0], p))
+        unwrapped = NonlinearSolveBase._unwrap_despecialized_problem(prob)
+        @test unwrapped.p isa typeof(p)
+        @test unwrapped.f.f === residual
+        @test unwrapped.f.jac === jac
+        # The adjoint path concretizes the unwrapped problem again.
+        reconcretized = NonlinearSolveBase.get_concrete_problem(unwrapped)
+        @test reconcretized.p isa typeof(p)
+        @test reconcretized.f.f === residual
+        @test reconcretized.f.jac === jac
+    end
+end
+
 @testset "other specialization policies retain concrete parameters" begin
     p = DynamicParameters(2.0)
     for specialize in (SciMLBase.AutoSpecialize, SciMLBase.FullSpecialize)
@@ -132,4 +158,29 @@ end
         prob = NonlinearSolveBase.get_concrete_problem(NonlinearProblem(f, [1.0], p))
         @test prob.p === p
     end
+end
+
+@testset "wrapped callbacks report the wrapped function's arity" begin
+    using Enzyme
+    prob = NonlinearSolveBase.get_concrete_problem(dynamic_problem(DynamicParameters(2.0)))
+    @test prob.f.f isa NonlinearSolveBase.AutoSpecializeCallable
+    @test prob.f.jac isa NonlinearSolveBase.ParameterDespecializationWrapper
+    @test SciMLBase.numargs(prob.f.f) == SciMLBase.numargs(dynamic_residual!)
+    @test SciMLBase.numargs(prob.f.jac) == SciMLBase.numargs(dynamic_jacobian!)
+    @test SciMLBase.isinplace(prob.f.jac, 3, "jac", true)
+
+    # `remake` rebuilds the `NonlinearFunction`, which re-derives `isinplace` for every
+    # callback; that must stay differentiable when the wrapped problem is remade under
+    # Enzyme reverse mode.
+    function remake_loss(u, prob)
+        new_prob = remake(prob; u0 = prob.u0 .* u[1])
+        return sum(new_prob.u0)
+    end
+    u = [1.5]
+    du = zero(u)
+    Enzyme.autodiff(
+        Enzyme.set_runtime_activity(Enzyme.Reverse), Enzyme.Const(remake_loss),
+        Enzyme.Active, Enzyme.Duplicated(u, du), Enzyme.Const(prob)
+    )
+    @test du[1] ≈ sum(prob.u0)
 end

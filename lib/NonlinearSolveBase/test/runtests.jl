@@ -286,9 +286,9 @@ run_tests(;
 
             # Vector{Float64} u0 — wraps.
             prob_f64 = NonlinearProblem(f, [1.0, 2.0], [0.5, 0.25])
-            @test NonlinearSolveBase.is_fw_wrapped(
-                NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
-            )
+            wrapped_f64 = NonlinearSolveBase.maybe_wrap_nonlinear_f(prob_f64)
+            @test NonlinearSolveBase.is_fw_wrapped(wrapped_f64)
+            @test SciMLBase.unwrapped_f(wrapped_f64) === resid!
 
             # Vector{Dual} u0 — must NOT wrap.
             DualF = ForwardDiff.Dual{ForwardDiff.Tag{typeof(identity), Float64}, Float64, 2}
@@ -368,9 +368,15 @@ run_tests(;
 
         @safetestset "linsolve_identity!! workspace (#1020)" include("linsolve_workspace.jl")
 
+        @safetestset "oop jac return type error" include("jacobian_return_type.jl")
+
         @safetestset "Linear solver routing" include("linear_solver_routing.jl")
 
         @safetestset "Descent buffers start defined" include("descent_buffer_init.jl")
+
+        @safetestset "DescentResult parameter prefix dispatch" include(
+            "descent_result_dispatch.jl"
+        )
 
         @safetestset "Jacobian and restructure allocation fast paths" include(
             "allocation_fastpaths.jl"
@@ -394,9 +400,11 @@ run_tests(;
             "dampen_jacobian.jl"
         )
         @safetestset "safe_similar hands out zeroed buffers" include("safe_similar.jl")
+        @safetestset "construct_extension_jac scalar and matrix u0" include("extension_jac.jl")
         @safetestset "Non-finite objective protective break" include(
             "nonfinite_objective.jl"
         )
+        @safetestset "Moré λ update keeps its type" include("more_update_lambda.jl")
 
         return @safetestset "Dense LU refactorization allocations" include(
             "lu_refactorization_allocs.jl"

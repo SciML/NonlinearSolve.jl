@@ -104,7 +104,7 @@ function construct_jacobian_cache(
         if f.jac_prototype === nothing
             # While this is technically wasteful, it gives out the type of the Jacobian
             # which is needed to create the linear solver cache
-            stats.njacs += 1
+            ReactantCore.within_compile() || (stats.njacs += 1)
             if has_analytic_jac
                 Utils.safe_similar(
                     fu, promote_type(eltype(fu), eltype(u)), length(fu), length(u)
@@ -218,7 +218,7 @@ reused_jacobian(cache::JacobianCache{<:JacobianOperator}, u) = StatefulJacobianO
 # Core Computation
 ## Numbers
 function (cache::JacobianCache{<:Number})(u)
-    cache.stats.njacs += 1
+    ReactantCore.within_compile() || (cache.stats.njacs += 1)
 
     (; f, J, p) = cache
     cache.J = if SciMLBase.has_jac(f)
@@ -233,9 +233,32 @@ function (cache::JacobianCache{<:Number})(u)
     return cache.J
 end
 
+"""
+    checked_jacobian(J_stored, J)
+
+Convert `J` to the stored Jacobian's type (`jac_prototype`, or a dense `Matrix` when it is
+`nothing`), or throw an `ArgumentError` naming the accepted types when that conversion
+has no method.
+"""
+function checked_jacobian(J_stored, J)
+    try
+        return convert(typeof(J_stored), J)
+    catch err
+        err isa MethodError || rethrow()
+        throw(
+            ArgumentError(
+                "`jac(u, p)` returned a `$(typeof(J))` that cannot be converted to the \
+                 stored Jacobian type `$(typeof(J_stored))` (the type of `jac_prototype`, \
+                 a dense `Matrix` if it is `nothing`). Pass a `jac_prototype` that is an \
+                 `AbstractMatrix` or an `AbstractSciMLOperator` of the type `jac` returns."
+            )
+        )
+    end
+end
+
 ## Actually Compute the Jacobian
 function (cache::JacobianCache)(u)
-    cache.stats.njacs += 1
+    ReactantCore.within_compile() || (cache.stats.njacs += 1)
     (; f, J, p) = cache
     if SciMLBase.isinplace(f)
         if SciMLBase.has_jac(f)
@@ -249,7 +272,7 @@ function (cache::JacobianCache)(u)
         return J
     else
         if SciMLBase.has_jac(cache.f)
-            cache.J = f.jac(u, p)
+            cache.J = checked_jacobian(cache.J, f.jac(u, p))
         else
             cache.J = DI.jacobian(f, cache.di_extras, cache.autodiff, u, Constant(p))
         end
@@ -266,7 +289,7 @@ function (cache::JacobianCache{<:AbstractSciMLOperator})(u)
     if SciMLBase.has_jac(f) && f.jac !== update_coefficients!
         # A user-supplied analytic Jacobian that returns/updates an operator (e.g.
         # `jac(u, p)` returning a `MatrixOperator`). Mirror the concrete `has_jac` path.
-        cache.stats.njacs += 1
+        ReactantCore.within_compile() || (cache.stats.njacs += 1)
         if SciMLBase.isinplace(f)
             f.jac(cache.J, u, p)
         else

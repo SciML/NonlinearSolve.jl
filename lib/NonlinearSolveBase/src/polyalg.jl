@@ -6,6 +6,11 @@ A general way to define PolyAlgorithms for `NonlinearProblem` and
 tried in order until one succeeds. If none succeed, then the algorithm with the lowest
 residual is returned.
 
+If every stage natively supports box bounds, the polyalgorithm preserves the original
+bounded coordinates and projects an infeasible initial guess onto the box without
+mutating the supplied state. Otherwise, bound handling uses the variable transformation shared
+by algorithms without native bound support.
+
 ### Arguments
 
   - `algs`: a tuple of algorithms to try in-order! (If this is not a Tuple, then the
@@ -78,6 +83,12 @@ end
 
 function supports_postcondition(alg::NonlinearSolvePolyAlgorithm)
     return all(supports_postcondition, alg.algs)
+end
+
+SciMLBase.allowsbounds(alg::NonlinearSolvePolyAlgorithm) = all(SciMLBase.allowsbounds, alg.algs)
+
+function prepare_default_bounds(prob, alg::NonlinearSolvePolyAlgorithm)
+    return SciMLBase.allowsbounds(alg) ? prepare_default_bounds(prob, nothing) : prob
 end
 
 @concrete mutable struct NonlinearSolvePolyAlgorithmCache <: AbstractNonlinearSolveCache
@@ -205,6 +216,8 @@ function InternalAPI.reinit!(
         cache::NonlinearSolvePolyAlgorithmCache, args...; p = cache.prob.p, u0 = cache.u0,
         retain_best::Bool = false, kwargs...
     )
+    # `solve!` seeds every attempt from `cache.u0` when aliasing
+    cache.alias_u0 && u0 !== cache.u0 && copyto!(cache.u0, u0)
     cache.retain_best = retain_best
     cache.retain_count = retain_best ? cache.retain_count + 1 : 0
     retained = retain_best && 1 ≤ cache.best ≤ Utils.unwrap_val(cache.static_length)
@@ -288,6 +301,13 @@ function SciMLBase.__init(
         verbose = NonlinearVerbosity(verbose)
     end
 
+    # Native child caches evaluate the residual and validate bounds during construction.
+    initialize_before_cache = has_box_bounds(prob) && SciMLBase.allowsbounds(alg)
+    success = true
+    if initialize_before_cache
+        prob, success = run_initialization!(prob, initializealg, prob)
+    end
+
     u0 = prob.u0
     u0_aliased = alias_u0 ? copy(u0) : u0
     alias_u0 && (prob = SciMLBase.remake(prob; u0 = u0_aliased))
@@ -310,7 +330,11 @@ function SciMLBase.__init(
         ReturnCode.Default, false, maxiters, internalnorm,
         u0, u0_aliased, alias_u0, initializealg, verbose
     )
-    run_initialization!(cache)
+    if initialize_before_cache
+        success || (cache.retcode = ReturnCode.InitialFailure)
+    else
+        run_initialization!(cache)
+    end
     return cache
 end
 
@@ -404,13 +428,19 @@ function build_solution_less_specialize(
         right = nothing, stats = nothing, trace = nothing,
         store_original::Val = Val(false), kwargs...
     )
+    # Reactant cannot rebuild `Base.Pairs` keyword bags on the problem.
+    stored_prob = ReactantCore.within_compile() ? nothing : prob
+    stored_stats = ReactantCore.within_compile() ? nothing : stats
+    stored_trace = ReactantCore.within_compile() ? nothing : trace
     if store_original isa Val{true}
         return less_specialized_solution(
-            Any, u, resid, prob, alg, retcode, original, left, right, stats, trace
+            Any, u, resid, stored_prob, alg, retcode, original, left, right,
+            stored_stats, stored_trace
         )
     end
     return less_specialized_solution(
-        Nothing, u, resid, prob, alg, retcode, nothing, left, right, stats, trace
+        Nothing, u, resid, stored_prob, alg, retcode, nothing, left, right,
+        stored_stats, stored_trace
     )
 end
 

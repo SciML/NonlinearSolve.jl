@@ -1,9 +1,9 @@
 """
     SimpleTrustRegion(;
-        autodiff = AutoForwardDiff(), max_trust_radius = 0.0,
-        initial_trust_radius = 0.0, step_threshold = nothing,
+        autodiff = AutoForwardDiff(), max_trust_radius = nothing,
+        initial_trust_radius = nothing, step_threshold = nothing,
         shrink_threshold = nothing, expand_threshold = nothing,
-        shrink_factor = 0.25, expand_factor = 2.0, max_shrink_times::Int = 32,
+        shrink_factor = nothing, expand_factor = nothing, max_shrink_times::Int = 32,
         nlsolve_update_rule = Val(false)
     )
 
@@ -46,13 +46,13 @@ scalar and static array problems.
 """
 @kwdef @concrete struct SimpleTrustRegion <: AbstractSimpleNonlinearSolveAlgorithm
     autodiff = nothing
-    max_trust_radius = 0.0
-    initial_trust_radius = 0.0
-    step_threshold = 0.0001
+    max_trust_radius = nothing
+    initial_trust_radius = nothing
+    step_threshold = nothing
     shrink_threshold = nothing
     expand_threshold = nothing
     shrink_factor = nothing
-    expand_factor = 2.0
+    expand_factor = nothing
     max_shrink_times::Int = 32
     nlsolve_update_rule = Val(false)
 end
@@ -69,9 +69,11 @@ function SciMLBase.__solve(
     _alias_u0 = alias === nothing ? alias_u0 : Utils.get_alias_u0(alias, alias_u0)
     x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     T = eltype(x)
-    Δₘₐₓ = T(alg.max_trust_radius)
-    Δ = T(alg.initial_trust_radius)
-    η₁ = T(alg.step_threshold)
+    # `nothing` defaults become literals of type `T`, so a Float32 solve carries no
+    # Float64 values (devices without fp64, e.g. oneAPI/Metal, reject any double).
+    Δₘₐₓ = alg.max_trust_radius === nothing ? zero(T) : T(alg.max_trust_radius)
+    Δ = alg.initial_trust_radius === nothing ? zero(T) : T(alg.initial_trust_radius)
+    η₁ = alg.step_threshold === nothing ? T(0.0001) : T(alg.step_threshold)
 
     if alg.shrink_threshold === nothing
         η₂ = T(ifelse(NLBUtils.unwrap_val(alg.nlsolve_update_rule), 0.05, 0.25))
@@ -91,7 +93,7 @@ function SciMLBase.__solve(
         t₁ = T(alg.shrink_factor)
     end
 
-    t₂ = T(alg.expand_factor)
+    t₂ = alg.expand_factor === nothing ? T(2) : T(alg.expand_factor)
     max_shrink_times = alg.max_shrink_times
 
     autodiff = SciMLBase.has_jac(prob.f) ? alg.autodiff :
@@ -113,16 +115,15 @@ function SciMLBase.__solve(
 
     # Set default trust region radius if not specified by user.
     Δₘₐₓ = ifelse(iszero(Δₘₐₓ), max(L2_NORM(fx), maximum(x) - minimum(x)), Δₘₐₓ)
-    if iszero(alg.initial_trust_radius)
-        if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
-            norm_x = L2_NORM(x)
-            Δ = T(ifelse(norm_x > 0, norm_x, 1))
-        else
-            Δ = T(Δₘₐₓ / 11)
-        end
+    default_radius = if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
+        norm_x = L2_NORM(x)
+        ifelse(norm_x > 0, norm_x, one(T))
+    else
+        Δₘₐₓ / T(11)
     end
+    Δ = ifelse(iszero(Δ), default_radius, Δ)
 
-    fₖ = 0.5 * norm_fx^2
+    fₖ = norm_fx^2 / T(2)
     H = transpose(J) * J
     g = NLBUtils.restructure(x, J' * NLBUtils.safe_vec(fx))
     shrink_counter = 0
@@ -131,7 +132,6 @@ function SciMLBase.__solve(
     @bb δN_δsd = copy(x)
     @bb δN = copy(x)
     @bb Hδ = copy(x)
-    dogleg_cache = (; δsd, δN_δsd, δN)
 
     solved, retcode, fx_sol, x_sol = Utils.check_termination(
         tc_cache, fx, x, xo, prob
@@ -155,34 +155,32 @@ function SciMLBase.__solve(
         @bb Hδ = H × vec(δ)
         r = (fₖ₊₁ - fₖ) / (dot(δ, g) + (dot(δ, Hδ) / T(2)))
 
-        shrink = r < η₂
+        shrink = !(r ≥ η₂)
         shrink_counter = ifelse(shrink, shrink_counter + 1, 0)
         Δ = ifelse(shrink, t₁ * Δ, Δ)
 
-        # The step is only accepted, and termination only checked, for a sufficient
-        # reduction; the candidate quantities are always formed and then selected.
-        accepted = r ≥ η₁
-        candidate_solved, retcode, fx_sol,
-            x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
-        solved = accepted & candidate_solved
-        @bb @. xo = ifelse(accepted, x, xo)
-        J_candidate = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
-        fx = NLBUtils.evaluate_f!!(prob, fx, x)
-        @bb @. J = ifelse(accepted, J_candidate, J)
-        if !NLBUtils.unwrap_val(alg.nlsolve_update_rule)
-            expand = accepted & (r > η₃)
-            Δ = ifelse(expand, min(t₂ * Δ, Δₘₐₓ), Δ)
+        accepted = (r ≥ η₁) & (shrink_counter ≤ max_shrink_times)
+        ReactantCore.@trace track_numbers = false if accepted
+            solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
+            fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
         end
-        fₖ = ifelse(accepted, fₖ₊₁, fₖ)
-        H_candidate = transpose(J) * J
-        g_candidate = NLBUtils.restructure(x, transpose(J) * NLBUtils.safe_vec(fx))
-        @bb @. H = ifelse(accepted, H_candidate, H)
-        @bb @. g = ifelse(accepted, g_candidate, g)
+        update_model = accepted & !solved
+        ReactantCore.@trace track_numbers = false if update_model
+            @bb copyto!(xo, x)
+            xo = Utils.fresh(xo)
+            J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+            fx = NLBUtils.evaluate_f!!(prob, fx, x)
+            @bb H = transpose(J) × J
+            @bb g = transpose(J) × vec(fx)
+            fₖ = fₖ₊₁
+            if !NLBUtils.unwrap_val(alg.nlsolve_update_rule)
+                Δ = ifelse(r > η₃, min(t₂ * Δ, Δₘₐₓ), Δ)
+            end
+        end
 
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
             expanded = t₂ * L2_NORM(δ)
-            Δ = ifelse(r > η₃, expanded, ifelse(r > 0.5, max(Δ, expanded), Δ))
+            Δ = ifelse(r > η₃, expanded, ifelse(r > T(0.5), max(Δ, expanded), Δ))
         end
         iterations += 1
     end
@@ -198,6 +196,11 @@ end
 
 function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
     (; δsd, δN_δsd, δN) = cache
+
+    # Reactant tests triangularity on a materialized matrix during the linear solve.
+    if ReactantCore.within_compile() && J isa AbstractMatrix && !(J isa DenseMatrix)
+        J = copy(J)
+    end
 
     # Compute the Newton step
     @bb δN .= NLBUtils.restructure(δN, J \ NLBUtils.safe_vec(f))

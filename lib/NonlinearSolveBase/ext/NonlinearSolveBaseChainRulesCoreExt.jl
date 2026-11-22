@@ -55,15 +55,13 @@ function ChainRulesCore.rrule(
         kwargs...
     )
 
-    # when using mooncake ∂sol would be a NamedTuple Tangent with cotangents of all the solution struct's fields.
-    # However the pullback for this rule - "steadystatebackpass" as defined in SciMLSensitivity/src/concrete_solve.jl/
-    # handles AD only when ∂sol is a ChainRulesCore.AbstractThunk object or a sol.u vector and similar data structures (not namedtuples).
-    # When using Mooncake, we pass in sol.u to inner_thunking_pb directly as this is the only field relevant to the solution's cotangent (given solve_up, AbstractNonlinearProblem setting).
+    # `inner_thunking_pb` ("steadystatebackpass" in SciMLSensitivity/src/concrete_solve.jl)
+    # consumes the state cotangent from `∂sol.u` and additionally the parameter cotangent
+    # from `∂sol.prob.p` (populated by symbolic-indexing pullbacks such as `sol[obs]`).
+    # Forwarding the whole tangent preserves both channels.
 
     function solve_up_adjoint(∂sol)
-        adjoints = inner_thunking_pb(
-            ∂sol isa Tangent{Any, <:NamedTuple} ? ∂sol.u : ∂sol
-        )
+        adjoints = inner_thunking_pb(∂sol)
         dp = adjoints[5]
         if p isa SciMLBase.DespecializedParameters && !(dp isa AbstractZero)
             dp = _unwrap_despecialized_tangent(dp)

@@ -190,18 +190,49 @@ function construct_extension_jac(
     )
     autodiff = select_jacobian_autodiff(prob, autodiff)
 
+    # Wrapper solvers flatten `u`; keep the caller's values, restore `prob.u0`'s shape.
+    u_size = size(prob.u0)
+    u_native = if prob.u0 isa Number
+        u0 isa Number ? u0 : u0[1]
+    else
+        size(u0) == u_size ? u0 : reshape(u0, u_size)
+    end
+    # Residual shape is independent of state shape; honour `resid_prototype` when set.
+    fu_native = if prob.u0 isa Number
+        fu isa Number ? fu : fu[1]
+    else
+        rp = prob.f.resid_prototype
+        if rp !== nothing
+            size(fu) == size(rp) ? fu :
+                (
+                    length(fu) == length(rp) ? reshape(fu, size(rp)) :
+                    Utils.evaluate_f(prob, u_native)
+                )
+        elseif size(fu) == u_size
+            fu
+        else
+            Utils.evaluate_f(prob, u_native)
+        end
+    end
     Jₚ = construct_jacobian_cache(
-        prob, alg, prob.f, fu, u0, prob.p;
+        prob, alg, prob.f, fu_native, u_native, prob.p;
         stats = NLStats(0, 0, 0, 0, 0), autodiff, kwargs...
     )
 
-    J_no_scalar = can_handle_scalar isa Val{false} && prob.u0 isa Number ?
-        @closure(u -> [Jₚ(u[1])]) : Jₚ
+    J_adapted = if prob.u0 isa Number
+        if can_handle_scalar isa Val{true}
+            Jₚ
+        else
+            @closure u -> [Jₚ(u isa Number ? u : u[1])]
+        end
+    else
+        @closure u -> Jₚ(size(u) == u_size ? u : reshape(u, u_size))
+    end
 
-    J_final(J, u) = copyto!(J, J_no_scalar(u))
-    J_final(u) = J_no_scalar(u)
+    J_final(J, u) = copyto!(J, J_adapted(u))
+    J_final(u) = J_adapted(u)
 
     initial_jacobian isa Val{false} && return J_final
 
-    return J_final, reused_jacobian(Jₚ, u0)
+    return J_final, reused_jacobian(Jₚ, u_native)
 end

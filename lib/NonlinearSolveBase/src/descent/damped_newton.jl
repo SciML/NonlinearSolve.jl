@@ -1,6 +1,8 @@
 """
-    DampedNewtonDescent(; linsolve = nothing, initial_damping, damping_fn,
-                          min_norm_mode = :auto)
+    DampedNewtonDescent(;
+        linsolve = nothing, initial_damping, damping_fn,
+        min_norm_mode = :auto
+    )
 
 A Newton descent algorithm with damping. The damping factor is computed using the
 `damping_fn` function. The descent direction is computed as ``(JᵀJ + λDᵀD) δu = -fu``. For
@@ -52,6 +54,7 @@ supports_trust_region(::DampedNewtonDescent) = true
     δus
     lincache
     JᵀJ_cache
+    JᵀJ_workspace
     Jᵀfu_cache
     rhs_cache
     damping_fn_cache
@@ -124,6 +127,7 @@ function InternalAPI.init(
     end
 
     z_cache = nothing
+    JᵀJ_workspace = nothing
 
     if mode === :minimum_norm
         # The minimum-norm formulation is the normal form of the dual system: solve
@@ -153,6 +157,7 @@ function InternalAPI.init(
     elseif mode === :least_squares
         if requires_normal_form_jacobian(alg.damping_fn)
             JᵀJ = transpose(J) * J  # Needed to compute the damping factor
+            JᵀJ_workspace = Utils.normal_form_workspace(J)
             jac_damp = JᵀJ
         else
             JᵀJ = nothing
@@ -193,6 +198,7 @@ function InternalAPI.init(
         JᵀJ, Jᵀfu, rhs_cache = nothing, nothing, nothing
     elseif mode === :normal_form
         JᵀJ = transpose(J) * J
+        JᵀJ_workspace = Utils.normal_form_workspace(J)
         Jᵀfu = transpose(J) * Utils.safe_vec(fu)
         jac_damp = requires_normal_form_jacobian(alg.damping_fn) ? JᵀJ : J
         rhs_damp = requires_normal_form_rhs(alg.damping_fn) ? Jᵀfu : fu
@@ -225,7 +231,7 @@ function InternalAPI.init(
     )
 
     return DampedNewtonDescentCache(
-        J_cache, δu, δus, lincache, JᵀJ, Jᵀfu, rhs_cache,
+        J_cache, δu, δus, lincache, JᵀJ, JᵀJ_workspace, Jᵀfu, rhs_cache,
         damping_fn_cache, timer, pre_inverted, Val(mode), z_cache
     )
 end
@@ -257,7 +263,9 @@ function InternalAPI.solve!(
             if (J !== nothing || new_jacobian) && recompute_A
                 preinverted_jacobian(cache) && (J = inv(J))
                 if requires_normal_form_jacobian(cache.damping_fn_cache)
-                    @bb cache.JᵀJ_cache = transpose(J) × J
+                    cache.JᵀJ_cache = Utils.normal_form_jacobian!!(
+                        cache.JᵀJ_cache, J, cache.JᵀJ_workspace
+                    )
                     jac_damp = cache.JᵀJ_cache
                 else
                     jac_damp = J
@@ -296,7 +304,9 @@ function InternalAPI.solve!(
         elseif cache.mode isa Val{:normal_form}
             if (J !== nothing || new_jacobian) && recompute_A
                 preinverted_jacobian(cache) && (J = inv(J))
-                @bb cache.JᵀJ_cache = transpose(J) × J
+                cache.JᵀJ_cache = Utils.normal_form_jacobian!!(
+                    cache.JᵀJ_cache, J, cache.JᵀJ_workspace
+                )
                 @bb cache.Jᵀfu_cache = transpose(J) × vec(fu)
                 D = InternalAPI.solve!(
                     cache.damping_fn_cache, cache.JᵀJ_cache, cache.Jᵀfu_cache, Val(true)

@@ -44,8 +44,8 @@ end
 """
     FastLevenbergMarquardtJL(
         linsolve::Symbol = :cholesky;
-        factor = 1e-6, factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
-        minscale = 1e-12, maxscale = 1e16, minfactor = 1e-28, maxfactor = 1e32,
+        factor = 1.0e-6, factoraccept = 13.0, factorreject = 3.0, factorupdate = :marquardt,
+        minscale = 1.0e-12, maxscale = 1.0e16, minfactor = 1.0e-28, maxfactor = 1.0e32,
         autodiff = nothing
     )
 
@@ -408,7 +408,7 @@ end
 
 """
     SIAMFANLEquationsJL(;
-        method = :newton, delta = 1e-3, linsolve = nothing, autodiff = missing
+        method = :newton, delta = 1.0e-3, linsolve = nothing, autodiff = missing
     )
 
 ### Keyword Arguments

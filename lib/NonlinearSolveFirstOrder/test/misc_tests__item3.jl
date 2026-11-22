@@ -37,5 +37,6 @@ reinit!(cache, [1.0, 1.0]; p = 2.0)
 original_initial_trust_radius = tr_cache.initial_trust_radius
 reinit!(cache, [100.0, 1.0]; p = 2.0)
 @test tr_cache.initial_trust_radius != original_initial_trust_radius
-@test tr_cache.initial_trust_radius == tr_cache.max_trust_radius / 11
+# Moré's default initial radius is ‖u0‖ (the `max/11` formula was the old Dogleg+Simple default)
+@test tr_cache.initial_trust_radius ≈ hypot(100.0, 1.0)
 @test tr_cache.trust_region == tr_cache.initial_trust_radius

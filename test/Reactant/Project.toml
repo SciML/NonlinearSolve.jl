@@ -14,6 +14,7 @@ SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
+NonlinearSolve = {path = "../.."}
 BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
 NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
@@ -26,12 +27,13 @@ BracketingNonlinearSolve = "1.6"
 DifferentiationInterface = "0.7.3"
 Enzyme = "0.13.90"
 NonlinearSolve = "4.28"
-NonlinearSolveBase = "2.47"
+NonlinearSolveBase = "2.56"
 NonlinearSolveFirstOrder = "2"
 NonlinearSolveQuasiNewton = "1.15.1"
 NonlinearSolveSpectralMethods = "1.6"
-Reactant = "0.2.284"
-SciMLBase = "3.37"
+Reactant = "0.2.289"
+ReactantCore = "0.1.23"
+SciMLBase = "3.57"
 SimpleNonlinearSolve = "2.14"
 Test = "1.10"
 julia = "1.10"

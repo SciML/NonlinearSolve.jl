@@ -23,3 +23,45 @@ if pkgversion(NonlinearSolveBase) >= v"2.30.3"
         @test 0.0 <= sol.u[1] <= 2.0
     end
 end
+
+@testset "transformed analytic Jacobians and products" begin
+    using LinearAlgebra, LinearSolve, SparseArrays
+
+    for iip in (false, true), representation in (:dense, :sparse, :operator)
+        f(u, p) = u .^ 2 .- p
+        jac(u, p) = Diagonal(2 .* u)
+        jvp(v, u, p) = 2 .* u .* v
+        f!(r, u, p) = (r .= f(u, p))
+        jac!(J, u, p) = (J .= jac(u, p))
+        jvp!(Jv, v, u, p) = (Jv .= jvp(v, u, p))
+        prototype = representation === :sparse ? sparse(Diagonal(ones(2))) : nothing
+        nf = if iip
+            NonlinearFunction{true}(
+                f!; jac = representation === :operator ? nothing : jac!,
+                jvp = jvp!, vjp = jvp!, jac_prototype = prototype
+            )
+        else
+            NonlinearFunction{false}(
+                f; jac = representation === :operator ? nothing : jac,
+                jvp, vjp = jvp, jac_prototype = prototype
+            )
+        end
+        linsolve = representation === :operator ? KrylovJL_GMRES() : nothing
+        prob = NonlinearProblem(nf, [1.0, 1.5], [4.0, 9.0]; lb = 0.0, ub = 10.0)
+        cache = init(prob, NewtonRaphson(; linsolve); abstol = 1.0e-10, reltol = 1.0e-10)
+        J = cache.jac_cache(cache.u)
+        representation === :sparse && @test issparse(J)
+        representation === :operator && @test !(J isa AbstractMatrix)
+        sol = solve!(cache)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ [2.0, 3.0] atol = 1.0e-8
+    end
+
+    prob = NonlinearProblem(
+        NonlinearFunction((u, p) -> u^2 - p; jac = (u, p) -> 2u),
+        1.0, 4.0; lb = 0.0, ub = 10.0
+    )
+    sol = solve(prob, NewtonRaphson(); abstol = 1.0e-10, reltol = 1.0e-10)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ 2.0 atol = 1.0e-8
+end

@@ -53,6 +53,10 @@ function SciMLBase.__solve(
     fx = NLBUtils.evaluate_f(prob, x)
 
     solved = iszero(fx)
+    compiling = ReactantCore.within_compile()
+    if !compiling && solved
+        return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+    end
 
     abstol, reltol,
         tc_cache = NonlinearSolveBase.init_termination_cache(
@@ -77,8 +81,10 @@ function SciMLBase.__solve(
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
         fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
 
-        fx = NLBUtils.evaluate_f!!(prob, fx, x)
-        J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+        if compiling || !solved
+            fx = NLBUtils.evaluate_f!!(prob, fx, x)
+            J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+        end
         iterations += 1
     end
 

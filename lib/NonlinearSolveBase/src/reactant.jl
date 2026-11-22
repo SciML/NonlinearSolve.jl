@@ -30,23 +30,30 @@ the loop boundary instead. Mutable structs are updated in place, immutable ones 
 """
 function dealias_traced!(x)
     ReactantCore.within_compile() || return x
-    ReactantCore.is_traced(x) || return x
-    # Traced arrays are dense; structured wrappers (`Diagonal`, ...) are walked as structs so
-    # that they keep their type.
-    x isa DenseArray && return x .+ zero(eltype(x))
-    x isa Number && return x + zero(x)
-    x isa Union{Tuple, NamedTuple} && return map(dealias_traced!, x)
-    T = typeof(x)
+    return _dealias_traced!(x, Base.IdSet())
+end
+
+function _dealias_traced!(x, ancestors)
+    (isbits(x) || x isa Union{Type, Module, Symbol, AbstractString, Array}) && return x
+    x isa DenseArray && return copy(x)
+    x isa Number && return copy(x)
+    x isa Union{Tuple, NamedTuple} && return map(v -> _dealias_traced!(v, ancestors), x)
+    names = fieldnames(typeof(x))
     if ismutable(x)
-        for name in fieldnames(T)
+        x in ancestors && return x
+        push!(ancestors, x)
+        for name in names
             isdefined(x, name) || continue
-            setfield!(x, name, dealias_traced!(getfield(x, name)))
+            field = getfield(x, name)
+            value = _dealias_traced!(field, ancestors)
+            field === value || setfield!(x, name, value)
         end
+        delete!(ancestors, x)
         return x
     end
-    names = fieldnames(T)
-    isempty(names) && return x
-    values = map(name -> dealias_traced!(getfield(x, name)), names)
+    fields = map(name -> getfield(x, name), names)
+    values = map(v -> _dealias_traced!(v, ancestors), fields)
+    values === fields && return x
     return ConstructionBase.setproperties(x, NamedTuple{names}(values))
 end
 

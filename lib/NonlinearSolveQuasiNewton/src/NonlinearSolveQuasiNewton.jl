@@ -21,6 +21,7 @@ module NonlinearSolveQuasiNewton
 
 using ConcreteStructs: @concrete
 using PrecompileTools: @compile_workload, @setup_workload
+using ReactantCore: ReactantCore
 using Reexport: @reexport
 
 using ArrayInterface: ArrayInterface

@@ -105,6 +105,24 @@ end
 
 NonlinearSolveBase.supports_postcondition(::GeneralizedFirstOrderAlgorithm) = true
 
+_trust_region_retcode!(cache, J, fu, u) = ReturnCode.Default
+
+function _validate_native_bounds(prob, alg, u)
+    SciMLBase.allowsbounds(alg) || return nothing
+    lb = hasproperty(prob, :lb) ? prob.lb : nothing
+    ub = hasproperty(prob, :ub) ? prob.ub : nothing
+    if lb !== nothing && !all(u .>= lb)
+        throw(ArgumentError("The initial guess must satisfy the lower bounds."))
+    end
+    if ub !== nothing && !all(u .<= ub)
+        throw(ArgumentError("The initial guess must satisfy the upper bounds."))
+    end
+    if lb !== nothing && ub !== nothing && !all(lb .<= ub)
+        throw(ArgumentError("Each lower bound must be less than or equal to its upper bound."))
+    end
+    return nothing
+end
+
 function SciMLBase.get_du(cache::GeneralizedFirstOrderAlgorithmCache)
     return SciMLBase.get_du(cache.descent_cache)
 end
@@ -118,6 +136,7 @@ function InternalAPI.reinit_self!(
         maxiters = hasproperty(cache, :maxiters) ? cache.maxiters : 1000,
         maxtime = hasproperty(cache, :maxtime) ? cache.maxtime : nothing, kwargs...
     )
+    _validate_native_bounds(cache.prob, cache.alg, u0)
     Utils.reinit_common!(cache, u0, p, alias_u0)
 
     InternalAPI.reinit!(cache.stats)
@@ -171,7 +190,8 @@ function SciMLBase.__init(
     provided_vjp_autodiff = alg.vjp_autodiff !== nothing
     @set! alg.vjp_autodiff = if !provided_vjp_autodiff && alg.autodiff !== nothing &&
             (
-            ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
+            (SciMLBase.allowsbounds(alg) && _box_dense_ad(alg.autodiff) isa ADTypes.AutoFiniteDiff) ||
+                ADTypes.mode(alg.autodiff) isa ADTypes.ReverseMode ||
                 ADTypes.mode(alg.autodiff) isa
                 ADTypes.ForwardOrReverseMode
         )
@@ -199,6 +219,7 @@ function SciMLBase.__init(
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
         u = Utils.maybe_unaliased(prob.u0, alias_u0)
+        _validate_native_bounds(prob, alg, u)
         fu = Utils.evaluate_f(prob, u)
         @bb u_cache = copy(u)
 
@@ -210,10 +231,29 @@ function SciMLBase.__init(
         )
         linsolve_kwargs = merge((; verbose = verbose.linear_verbosity, abstol, reltol), linsolve_kwargs)
 
-        jac_cache = NonlinearSolveBase.construct_jacobian_cache(
-            _ad_prob, alg, _ad_prob.f, fu, u, _ad_prob.p;
-            stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
-        )
+        difference_cache = if SciMLBase.allowsbounds(alg) &&
+                _box_concrete_jacobian(alg, linsolve) &&
+                _box_dense_ad(alg.autodiff) isa ADTypes.AutoFiniteDiff &&
+                !SciMLBase.has_jac(_ad_prob.f) &&
+                !(_ad_prob.f.jac_prototype isa SciMLOperators.AbstractSciMLOperator)
+            lb, ub = _box_bounds(prob, u)
+            _box_difference_cache(_ad_prob, fu, u, lb, ub, stats)
+        else
+            if SciMLBase.allowsbounds(alg) && !_box_concrete_jacobian(alg, linsolve) &&
+                    _box_needs_difference_products(_ad_prob, alg)
+                lb, ub = _box_bounds(prob, u)
+                _ad_prob = _box_product_problem(_ad_prob, alg, fu, lb, ub, stats)
+            end
+            nothing
+        end
+        jac_cache = if difference_cache === nothing
+            NonlinearSolveBase.construct_jacobian_cache(
+                _ad_prob, alg, _ad_prob.f, fu, u, _ad_prob.p;
+                stats, alg.autodiff, linsolve, alg.jvp_autodiff, alg.vjp_autodiff
+            )
+        else
+            difference_cache
+        end
         J = reused_jacobian(jac_cache, u)
 
         descent_cache = InternalAPI.init(
@@ -249,7 +289,7 @@ function SciMLBase.__init(
             trustregion_cache = InternalAPI.init(
                 _ad_prob, alg.trustregion, _ad_prob.f, fu, u, _ad_prob.p;
                 vjp_autodiff = _tr_vjp_ad, jvp_autodiff = _tr_jvp_ad,
-                stats, internalnorm, kwargs...
+                stats, internalnorm, abstol, reltol, kwargs...
             )
             globalization = Val(:TrustRegion)
         end
@@ -282,7 +322,7 @@ function SciMLBase.__init(
 
         if has_forcing
             forcing_cache = InternalAPI.init(
-                _ad_prob, alg.forcing, fu, u, u, _ad_prob.p; stats, internalnorm,
+                _ad_prob, alg.forcing, _ad_prob.f, fu, u, _ad_prob.p; stats, internalnorm,
                 autodiff = ifelse(
                     provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
                 ),
@@ -332,17 +372,28 @@ function NonlinearSolveBase.supports_deferred_residual(
     return !NonlinearSolveBase.trace_is_active(cache.trace)
 end
 
+function _active_forcing_cache(cache, J)
+    fc = cache.forcing_cache
+    if fc === nothing || fc === missing || cache.u isa Number || J isa Diagonal
+        return nothing
+    end
+    return fc
+end
+
 function NonlinearSolveBase.refresh_residual!(cache::GeneralizedFirstOrderAlgorithmCache)
     cache.fu_deferred || return nothing
     cache.fu_deferred = false
     Utils.evaluate_f!(cache, cache.u, cache.p)
     schedule_next_jacobian!(cache)
+    fc = _active_forcing_cache(cache, nothing)
+    fc !== nothing && post_step_forcing!(fc, nothing, cache.u, cache.fu, nothing, cache.nsteps)
     NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     return nothing
 end
 
 # Called once the residual at a newly accepted iterate is available.
 function schedule_next_jacobian!(cache::GeneralizedFirstOrderAlgorithmCache)
+    ReactantCore.within_compile() && return nothing
     cache.make_new_jacobian = prepare_next_jacobian!(cache.jacobian_reuse_cache, cache.fu)
     return nothing
 end
@@ -372,10 +423,20 @@ function InternalAPI.step!(
     end
     new_jacobian && reset_jacobian_reuse!(cache.jacobian_reuse_cache, cache.fu)
 
-    has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing && !(cache.u isa Number) && !(J isa Diagonal)
+    trust_region_retcode = _trust_region_retcode!(
+        cache.trustregion_cache, J, cache.fu, cache.u
+    )
+    if trust_region_retcode != ReturnCode.Default
+        cache.retcode = trust_region_retcode
+        cache.force_stop = true
+        return
+    end
+
+    forcing_cache = _active_forcing_cache(cache, J)
+    has_forcing = forcing_cache !== nothing
 
     if has_forcing
-        pre_step_forcing!(cache.forcing_cache, cache.descent_cache, J, cache.u, cache.fu, cache.nsteps)
+        pre_step_forcing!(forcing_cache, cache.descent_cache, J, cache.u, cache.fu, cache.nsteps)
     end
 
     @static_timeit cache.timer "descent" begin
@@ -392,7 +453,10 @@ function InternalAPI.step!(
         end
     end
 
-    if !descent_result.linsolve_success
+    if ReactantCore.within_compile()
+        cache.retcode = ifelse(descent_result.linsolve_success, cache.retcode, ReturnCode.InternalLinearSolveFailed)
+        cache.force_stop = cache.force_stop | !descent_result.linsolve_success
+    elseif !descent_result.linsolve_success
         if new_jacobian
             # Jacobian Information is current and linear solve failed terminate the solve
             cache.retcode = ReturnCode.InternalLinearSolveFailed
@@ -411,15 +475,20 @@ function InternalAPI.step!(
 
     δu, descent_intermediates = descent_result.δu, descent_result.extras
 
-    α = NonlinearSolveBase.maybe_traced(false)
-    ReactantCore.@trace track_numbers = false if descent_result.success
-        α = _perform_first_order_step!(
+    # `@trace if` expands to closures that box locals; keep it off the host path so
+    # Trim/JET see ordinary branching. Under compile, success is a traced Bool.
+    α = if ReactantCore.within_compile()
+        _step_after_descent_traced!(
+            cache, J, δu, descent_intermediates, descent_result.success,
+            has_forcing, defer_residual, policy_driven
+        )
+    elseif descent_result.success
+        _perform_first_order_step!(
             cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
         )
     else
-        # Under Reactant every step is traced, so the Jacobian is always recomputed.
-        cache.make_new_jacobian = ReactantCore.within_compile() ||
-            jacobian_is_stale(cache.jacobian_reuse_cache)
+        _reject_first_order_descent!(cache)
+        false
     end
     # The line search asked for a retry on a fresh Jacobian; that step already finished.
     α === nothing && return
@@ -432,13 +501,30 @@ function InternalAPI.step!(
     return nothing
 end
 
+function _step_after_descent_traced!(
+        cache, J, δu, descent_intermediates, success,
+        has_forcing, defer_residual, policy_driven
+    )
+    α = NonlinearSolveBase.maybe_traced(false)
+    ReactantCore.@trace track_numbers = false if success
+        α = _perform_first_order_step!(
+            cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
+        )
+    else
+        _reject_first_order_descent!(cache)
+    end
+    return α
+end
+
+function _reject_first_order_descent!(cache)
+    ReactantCore.within_compile() && return nothing
+    cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache)
+    return nothing
+end
+
 function _perform_first_order_step!(
         cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
     )
-    if has_forcing
-        post_step_forcing!(cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps)
-    end
-
     # Under Reactant acceptance is traced and cannot be branched on, so every step counts
     # as accepted for the Jacobian policy (which is switched off there anyway).
     accepted_step = false
@@ -450,7 +536,7 @@ function _perform_first_order_step!(
         end
         if linesearch_failed && policy_driven &&
                 jacobian_is_stale(cache.jacobian_reuse_cache)
-            @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_stale_jac)
+            @SciMLMessage("Line Search Failed with stale Jacobian information. Retrying with updated Jacobian.", cache.verbose, :linsolve_failed_noncurrent)
             cache.make_new_jacobian = true
             InternalAPI.step!(cache; recompute_jacobian = true)
             return nothing
@@ -472,26 +558,48 @@ function _perform_first_order_step!(
                 fu_new = InternalAPI.solve!(
                 cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
             )
-            @bb @. cache.u = ifelse(tr_accepted, u_new, cache.u)
-            if NonlinearSolveBase.get_postcondition(cache) === nothing
-                @bb @. cache.fu = ifelse(tr_accepted, fu_new, cache.fu)
-            elseif ReactantCore.within_compile() || tr_accepted
-                cache.u = NonlinearSolveBase.apply_postcondition!!(
-                    cache.u, cache.u_cache, cache
-                )
-                Utils.evaluate_f!(cache, cache.u, cache.p)
+            if ReactantCore.within_compile()
+                @bb @. cache.u = ifelse(tr_accepted, u_new, cache.u)
+                if NonlinearSolveBase.get_postcondition(cache) === nothing
+                    @bb @. cache.fu = ifelse(tr_accepted, fu_new, cache.fu)
+                else
+                    cache.u = NonlinearSolveBase.apply_postcondition!!(
+                        cache.u, cache.u_cache, cache
+                    )
+                    Utils.evaluate_f!(cache, cache.u, cache.p)
+                end
+                α = tr_accepted
+                # Jacobian reuse is disabled under compile; treat the step as accepted.
+                accepted_step = true
+                if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                        cache.max_shrink_times < typemax(Int)
+                    exceeded = cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                    cache.retcode = ifelse(
+                        exceeded, ReturnCode.ShrinkThresholdExceeded, cache.retcode
+                    )
+                    cache.force_stop = exceeded | cache.force_stop
+                end
+            elseif tr_accepted
+                @bb copyto!(cache.u, u_new)
+                if NonlinearSolveBase.get_postcondition(cache) === nothing
+                    @bb copyto!(cache.fu, fu_new)
+                else
+                    cache.u = NonlinearSolveBase.apply_postcondition!!(
+                        cache.u, cache.u_cache, cache
+                    )
+                    Utils.evaluate_f!(cache, cache.u, cache.p)
+                end
+                α = true
+                accepted_step = true
+            else
+                α = false
+                cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache)
             end
-            α = tr_accepted
-            accepted_step = ReactantCore.within_compile() || tr_accepted
-            accepted_step ||
-                (cache.make_new_jacobian = jacobian_is_stale(cache.jacobian_reuse_cache))
-            if hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
-                    cache.max_shrink_times < typemax(Int)
-                exceeded = cache.trustregion_cache.shrink_counter > cache.max_shrink_times
-                cache.retcode = ifelse(
-                    exceeded, ReturnCode.ShrinkThresholdExceeded, cache.retcode
-                )
-                cache.force_stop = exceeded | cache.force_stop
+            if !ReactantCore.within_compile() &&
+                    hasfield(typeof(cache.trustregion_cache), :shrink_counter) &&
+                    cache.trustregion_cache.shrink_counter > cache.max_shrink_times
+                cache.retcode = ReturnCode.ShrinkThresholdExceeded
+                cache.force_stop = true
             end
         end
     elseif cache.globalization isa Val{:None}
@@ -512,14 +620,30 @@ function _perform_first_order_step!(
         cache.fu_deferred = true
     else
         accepted_step && schedule_next_jacobian!(cache)
+        if has_forcing && (accepted_step || cache.globalization isa Val{:LineSearch})
+            post_step_forcing!(
+                cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps
+            )
+        end
         NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     end
     return α
 end
 
+function _default_bounded_alg(prob, kwargs)
+    return SobolMultistart(
+        FastShortcutBoundedPolyalg(;
+            must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, kwargs) !== nothing
+        )
+    )
+end
+
 function SciMLBase.__init(prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...)
     return SciMLBase.__init(
-        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...
+        prob,
+        prob.lb !== nothing || prob.ub !== nothing ? _default_bounded_alg(prob, kwargs) :
+            FastShortcutNLLSPolyalg(eltype(prob.u0)),
+        args...; kwargs...
     )
 end
 
@@ -527,10 +651,21 @@ function SciMLBase.__solve(
         prob::NonlinearLeastSquaresProblem, ::Nothing, args...; kwargs...
     )
     return SciMLBase.__solve(
-        prob, FastShortcutNLLSPolyalg(eltype(prob.u0)), args...; kwargs...
+        prob,
+        prob.lb !== nothing || prob.ub !== nothing ? _default_bounded_alg(prob, kwargs) :
+            FastShortcutNLLSPolyalg(eltype(prob.u0)),
+        args...; kwargs...
     )
 end
 
-function NonlinearSolveBase.initialization_alg(::NonlinearLeastSquaresProblem, autodiff)
+function NonlinearSolveBase.initialization_alg(prob::NonlinearLeastSquaresProblem, autodiff)
+    if prob.lb !== nothing || prob.ub !== nothing
+        return SobolMultistart(
+            FastShortcutBoundedPolyalg(;
+                autodiff,
+                must_support_postcondition = NonlinearSolveBase.get_postcondition(prob, (;)) !== nothing
+            )
+        )
+    end
     return FastShortcutNLLSPolyalg(; autodiff)
 end
