@@ -1,5 +1,32 @@
 using AirspeedVelocity, Pkg, TOML
 
+function benchmark_project(checkout)
+    paths = [realpath(checkout)]
+    for path in paths
+        project = TOML.parsefile(joinpath(path, "Project.toml"))
+        deps = keys(get(project, "deps", ()))
+        for (name, source) in get(project, "sources", ())
+            name in deps && haskey(source, "path") || continue
+            dep = realpath(joinpath(path, source["path"]))
+            dep in paths || push!(paths, dep)
+        end
+    end
+    length(paths) == 1 && return nothing
+    env = joinpath(mktempdir(), "BenchmarkEnvironment")
+    Pkg.generate(env)
+    project_file = joinpath(env, "Project.toml")
+    # Pkg 1.10 needs a named project to share a manifest. AirspeedVelocity copies
+    # the project file, so both its source and its manifest need absolute paths.
+    project = TOML.parsefile(project_file)
+    project["path"] = env
+    project["manifest"] = joinpath(env, "Manifest.toml")
+    open(io -> TOML.print(io, project), project_file, "w")
+    Pkg.activate(project_file) do
+        Pkg.develop([PackageSpec(; path) for path in paths[2:end]])
+    end
+    return project_file
+end
+
 function benchmark_revisions(repo, revisions, output; script = nothing, kwargs...)
     repo, output = abspath(repo), abspath(output)
     revisions = String.(revisions)
@@ -15,10 +42,10 @@ function benchmark_revisions(repo, revisions, output; script = nothing, kwargs..
     package = TOML.parsefile(joinpath(first(checkouts), "Project.toml"))["name"]
     script = script === nothing ? joinpath(first(checkouts), "benchmark", "benchmarks.jl") : abspath(script)
     for (revision, checkout) in zip(revisions, checkouts)
-        # A local path lets AirspeedVelocity develop that revision's source packages on LTS.
+        project_toml = VERSION < v"1.11" ? benchmark_project(checkout) : nothing
         AirspeedVelocity.benchmark(
             PackageSpec(; name = package, path = checkout, rev = revision);
-            script, output_dir = output, extra_pkgs = ["StableRNGs"], kwargs...
+            script, project_toml, output_dir = output, extra_pkgs = ["StableRNGs"], kwargs...
         )
     end
     return AirspeedVelocity.load_results(package, revisions; input_dir = output)

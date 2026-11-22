@@ -39,6 +39,9 @@ jobs:
           export TMPDIR="$GITHUB_WORKSPACE/.benchmark/tmp"
           echo "TMPDIR=$TMPDIR" >> "$GITHUB_ENV"
           julia --startup-file=no -e 'using Pkg; Pkg.activate(".benchmark/tools"); Pkg.add(PackageSpec(name="AirspeedVelocity", version="0.6.5"))'
+      - name: Test LTS benchmark source resolution
+        if: matrix.version == 'lts'
+        run: julia --startup-file=no --project=.benchmark/tools benchmark/test_sources.jl
       - name: Benchmark both revisions with their local source packages
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
