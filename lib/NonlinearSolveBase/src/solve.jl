@@ -654,9 +654,14 @@ function _poly_success(retcode)
 end
 
 function _poly_resid_norm(prob::AbstractNonlinearProblem, resid)
-    # Reductions rather than `norm`, which iterates and cannot be traced.
-    fx = prob isa NonlinearLeastSquaresProblem ? sqrt(sum(abs2, resid)) :
+    fx = if prob isa NonlinearLeastSquaresProblem
+        isempty(resid) && return zero(real(eltype(resid)))
+        scale = maximum(abs, resid)
+        divisor = ifelse(isfinite(scale) & !iszero(scale), scale, one(scale))
+        scale * sqrt(sum(abs2, resid ./ divisor))
+    else
         maximum(abs, resid)
+    end
     return ifelse(isnan(fx), oftype(fx, Inf), fx)
 end
 
