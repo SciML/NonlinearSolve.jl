@@ -75,7 +75,7 @@ function SciMLBase.__solve(
         ReturnCode.Default, x, fx, xo, J, cᵢ
     )
     fx_sol, x_sol = Utils.fresh(fx), Utils.fresh(x)
-    unstable = false
+    unstable = NonlinearSolveBase.maybe_traced(false)
 
     ReactantCore.@trace track_numbers = false while (!solved) & (!unstable) &
             (iterations < maxiters)
@@ -89,16 +89,8 @@ function SciMLBase.__solve(
             unstable = !Utils.factorization_succeeded(J_fact)
         end
 
-        if !unstable
-            aᵢ = J_fact \ NLBUtils.safe_vec(fx)
-            hvvp = Utils.compute_hvvp(
-                prob, autodiff, fx_cache, x, NLBUtils.restructure(x, aᵢ)
-            )
-            bᵢ = J_fact \ NLBUtils.safe_vec(hvvp)
-
-            cᵢ_ = NLBUtils.safe_vec(cᵢ)
-            @bb @. cᵢ_ = (aᵢ * aᵢ) / (-aᵢ + (T(0.5) * bᵢ))
-            cᵢ = NLBUtils.restructure(cᵢ, cᵢ_)
+        ReactantCore.@trace track_numbers = false if !unstable
+            cᵢ = halley_step(J_fact, prob, autodiff, fx_cache, fx, x, cᵢ, T)
 
             solved, retcode, fx_sol,
                 x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
@@ -116,6 +108,21 @@ function SciMLBase.__solve(
         iterations += 1
     end
 
-    unstable && return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Unstable)
-    return Utils.simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved)
+    if !compiling && unstable
+        return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Unstable)
+    end
+    failure_retcode = ifelse(unstable, ReturnCode.Unstable, ReturnCode.MaxIters)
+    return Utils.simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved; failure_retcode)
+end
+
+function halley_step(J_fact, prob, autodiff, fx_cache, fx, x, cᵢ, ::Type{T}) where {T}
+    aᵢ = J_fact \ NLBUtils.safe_vec(fx)
+    hvvp = Utils.compute_hvvp(
+        prob, autodiff, fx_cache, x, NLBUtils.restructure(x, aᵢ)
+    )
+    bᵢ = J_fact \ NLBUtils.safe_vec(hvvp)
+
+    cᵢ_ = NLBUtils.safe_vec(cᵢ)
+    @bb @. cᵢ_ = (aᵢ * aᵢ) / (-aᵢ + (T(0.5) * bᵢ))
+    return NLBUtils.restructure(cᵢ, cᵢ_)
 end

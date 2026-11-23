@@ -88,3 +88,15 @@ end
     @test sol.retcode == ReturnCode.Success
     @test iszero(sol.u)
 end
+
+@testset "SimpleBroyden exact initial root" begin
+    identity_prob(u) = NonlinearProblem((x, p) -> x, u)
+    @testset for u in (0, 0 // 1)
+        sol = solve(identity_prob(u), SimpleBroyden())
+        @test sol.retcode == ReturnCode.Success
+        @test sol.u === u
+    end
+    prob = identity_prob(zeros(512))
+    solve(prob, SimpleBroyden())
+    @test (@allocated solve(prob, SimpleBroyden())) < length(prob.u0) * sizeof(prob.u0)
+end

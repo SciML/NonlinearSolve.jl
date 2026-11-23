@@ -367,6 +367,10 @@ function _run_cache_to_completion!(
     # A traced return code cannot be branched on; initialization failures are host events.
     !ReactantCore.within_compile() && cache.retcode == ReturnCode.InitialFailure && return cache
     dealias_traced!(cache)
+    # A bare `nothing` denotes an uninitialized slot to the traced while loop.
+    if ReactantCore.within_compile() && step_observer === nothing
+        step_observer = Returns(nothing)
+    end
     ReactantCore.@trace track_numbers = false while not_terminated(cache)
         CommonSolve.step!(cache)
         dealias_traced!(cache)
@@ -654,9 +658,14 @@ function _poly_success(retcode)
 end
 
 function _poly_resid_norm(prob::AbstractNonlinearProblem, resid)
-    # Reductions rather than `norm`, which iterates and cannot be traced.
-    fx = prob isa NonlinearLeastSquaresProblem ? sqrt(sum(abs2, resid)) :
+    fx = if prob isa NonlinearLeastSquaresProblem
+        isempty(resid) && return zero(real(eltype(resid)))
+        scale = maximum(abs, resid)
+        divisor = ifelse(isfinite(scale) & !iszero(scale), scale, one(scale))
+        scale * sqrt(sum(abs2, resid ./ divisor))
+    else
         maximum(abs, resid)
+    end
     return ifelse(isnan(fx), oftype(fx, Inf), fx)
 end
 

@@ -42,6 +42,9 @@ function SciMLBase.__solve(
     T = promote_type(eltype(fx), eltype(x))
 
     solved = iszero(fx)
+    if !ReactantCore.within_compile() && solved
+        return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+    end
 
     @bb xo = copy(x)
     @bb δx = similar(x)
@@ -68,6 +71,7 @@ function SciMLBase.__solve(
     )
 
     ls_cache = _linesearch_cache(prob, alg.linesearch, fx, x; kwargs...)
+    use_linesearch = ls_cache !== nothing
 
     retcode, iterations, x, xo, δx, δf, fprev, J⁻¹, J⁻¹δf, xᵀJ⁻¹, δJ⁻¹n,
         δJ⁻¹ = Utils.init_loop_state(
@@ -77,11 +81,11 @@ function SciMLBase.__solve(
         @bb δx = J⁻¹ × vec(fprev)
         @bb δx .*= -1
 
-        if ls_cache === nothing
-            α = true
-        else
+        if use_linesearch
             ls_sol = solve!(ls_cache, xo, δx)
             α = ls_sol.step_size # Ignores the return code for now
+        else
+            α = true
         end
 
         @bb @. x = xo + α * δx

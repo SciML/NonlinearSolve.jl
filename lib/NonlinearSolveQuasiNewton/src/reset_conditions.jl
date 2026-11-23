@@ -150,20 +150,7 @@ function InternalAPI.solve!(
         cache::IllConditionedJacobianResetCache, J, fu, u, du; kwargs...
     )
     J isa Number && return iszero(J)
-    if J isa Diagonal
-        # Host: exact zeros only (master). Under compile, also treat a huge
-        # diagonal condition number as ill-conditioned — compiled paths may
-        # land on tiny non-zeros instead of exact `0`.
-        exact_zero = any(iszero, J.diag)
-        if !ReactantCore.within_compile() || cache.condition_number_threshold === nothing
-            return exact_zero
-        end
-        dmin = minimum(abs, J.diag)
-        dmax = maximum(abs, J.diag)
-        illcond = dmax ≥
-            cache.condition_number_threshold * max(dmin, eps(real(eltype(J.diag))))
-        return exact_zero | illcond
-    end
+    J isa Diagonal && return any(iszero, J.diag)
     J isa AbstractVector && return any(iszero, J)
     J isa AbstractMatrix &&
         return Utils.condition_number(J) ≥ cache.condition_number_threshold

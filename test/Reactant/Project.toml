@@ -11,11 +11,12 @@ Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
 ReactantCore = "a3311ec8-5e00-46d5-b541-4f83e724a433"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SimpleNonlinearSolve = "727e6d20-b764-4bd8-a329-72de5adea6c7"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-NonlinearSolve = {path = "../.."}
 BracketingNonlinearSolve = {path = "../../lib/BracketingNonlinearSolve"}
+NonlinearSolve = {path = "../.."}
 NonlinearSolveBase = {path = "../../lib/NonlinearSolveBase"}
 NonlinearSolveFirstOrder = {path = "../../lib/NonlinearSolveFirstOrder"}
 NonlinearSolveQuasiNewton = {path = "../../lib/NonlinearSolveQuasiNewton"}
@@ -24,7 +25,7 @@ SimpleNonlinearSolve = {path = "../../lib/SimpleNonlinearSolve"}
 
 [compat]
 BracketingNonlinearSolve = "1.6"
-DifferentiationInterface = "0.7.3"
+DifferentiationInterface = "0.7.4"
 Enzyme = "0.13.90"
 NonlinearSolve = "4.28"
 NonlinearSolveBase = "2.56"
@@ -35,5 +36,6 @@ Reactant = "0.2.289"
 ReactantCore = "0.1.23"
 SciMLBase = "3.57"
 SimpleNonlinearSolve = "2.14"
+StaticArrays = "1.9"
 Test = "1.10"
 julia = "1.10"

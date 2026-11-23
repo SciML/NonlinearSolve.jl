@@ -47,11 +47,8 @@ helpers are in `lib/NonlinearSolveBase/src/reactant.jl`.
   the macro uses for its captured-variable bundle.
 - Under compilation the returned `NonlinearSolution` has `stats === nothing` (`NLStats`
   holds `Int`s) and `prob === nothing` (a problem's `Base.Pairs` keyword arguments cannot
-  be rebuilt by Reactant's result codegen); the default termination mode is
-  `AbsNormTerminationMode`, the Jacobian-reuse policy is switched off, and initialization
-  failure cannot be reported.
-- Not traceable at present, with the reason recorded next to the Reactant test matrix in
-  `test/Reactant/reactant_tests.jl`: line-search globalization (`norm(x, Inf)` scalar-indexes
-  under Reactant), `DFSane`, and trust-region schemes needing a reverse-mode
-  vector-Jacobian product (`RobustMultiNewton`).
-- The Reactant test group pins DifferentiationInterface for compiled array AD Jacobians.
+  be rebuilt by Reactant's result codegen). First-order solves retain the selected
+  termination mode and require an inactive Jacobian-reuse policy under compilation.
+- Use an analytic Jacobian for compiled array solves that need a concrete Jacobian.
+  The Reactant test group uses registered DifferentiationInterface. See the test matrix
+  in `test/Reactant/reactant_tests.jl` for supported solver configurations.

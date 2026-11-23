@@ -232,8 +232,13 @@ end
 # cannot be indexed into (traced arrays included) and so would alias the two.
 fresh(x) = NonlinearSolveBase.dealias_traced!(x)
 
-# A traced factorization cannot report failure; the residual shows it instead.
-factorization_succeeded(fact) = ReactantCore.within_compile() || LinearAlgebra.issuccess(fact)
+function factorization_succeeded(fact)
+    if ReactantCore.within_compile()
+        # The determinant sign detects a zero LU pivot without multiplying pivot magnitudes.
+        return !iszero(last(LinearAlgebra.logabsdet(fact)))
+    end
+    return LinearAlgebra.issuccess(fact)
+end
 
 """
     simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved)

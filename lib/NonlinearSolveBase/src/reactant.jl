@@ -30,30 +30,44 @@ the loop boundary instead. Mutable structs are updated in place, immutable ones 
 """
 function dealias_traced!(x)
     ReactantCore.within_compile() || return x
-    return _dealias_traced!(x, Base.IdSet())
+    # Traced arrays expose their traced scalar as eltype. Obtain the scalar family
+    # through promotion so the traversal also recognizes new device element types.
+    scalar = typejoin(typeof(maybe_traced(false)), typeof(maybe_traced(0)))
+    return _dealias_traced!(x, scalar, IdDict{Any, Nothing}())
 end
 
-function _dealias_traced!(x, ancestors)
-    (isbits(x) || x isa Union{Type, Module, Symbol, AbstractString, Array}) && return x
-    x isa DenseArray && return copy(x)
-    x isa Number && return copy(x)
-    x isa Union{Tuple, NamedTuple} && return map(v -> _dealias_traced!(v, ancestors), x)
-    names = fieldnames(typeof(x))
+function _dealias_traced!(x, scalar, visited)
+    x isa scalar && return oftype(x, x + zero(x))
+    if x isa DenseArray
+        eltype(x) <: scalar || return x
+        if x isa Array
+            result = copy(x)
+            for i in eachindex(x)
+                isassigned(x, i) && (result[i] = _dealias_traced!(x[i], scalar, visited))
+            end
+            return result
+        end
+        return oftype(x, x .+ zero(eltype(x)))
+    end
+    (isbits(x) || x isa Union{Type, Module, AbstractString, Symbol}) && return x
+    T = typeof(x)
+    names = fieldnames(T)
     if ismutable(x)
-        x in ancestors && return x
-        push!(ancestors, x)
+        haskey(visited, x) && return x
+        visited[x] = nothing
         for name in names
             isdefined(x, name) || continue
             field = getfield(x, name)
-            value = _dealias_traced!(field, ancestors)
-            field === value || setfield!(x, name, value)
+            value = _dealias_traced!(field, scalar, visited)
+            value === field || setfield!(x, name, value)
         end
-        delete!(ancestors, x)
         return x
     end
     fields = map(name -> getfield(x, name), names)
-    values = map(v -> _dealias_traced!(v, ancestors), fields)
+    values = map(field -> _dealias_traced!(field, scalar, visited), fields)
     values === fields && return x
+    x isa Tuple && return values
+    x isa NamedTuple && return NamedTuple{names}(values)
     return ConstructionBase.setproperties(x, NamedTuple{names}(values))
 end
 

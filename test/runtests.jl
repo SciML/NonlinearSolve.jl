@@ -184,15 +184,6 @@ else
             "Reactant" => (;
                 env = joinpath(@__DIR__, "Reactant"),
                 body = function ()
-                    Pkg.add(
-                        [
-                            Pkg.PackageSpec(;
-                                url = "https://github.com/ChrisRackauckas-Claude/DifferentiationInterface.jl.git",
-                                rev = "571fc1780c49d00addbeb31b491ab6e2b3273ee0",
-                                subdir = "DifferentiationInterface",
-                            ),
-                        ]
-                    )
                     return @time @safetestset "Reactant Integration" include("Reactant/reactant_tests.jl")
                 end,
             ),

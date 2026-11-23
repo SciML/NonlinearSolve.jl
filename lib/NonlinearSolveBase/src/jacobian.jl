@@ -49,6 +49,21 @@ function construct_jacobian_cache(
     fu_cache = Utils.safe_similar(fu)
 
     if op_jac === nothing && !has_analytic_jac && needs_jac
+        # Array AD Jacobians under Reactant `@jit`/`@compile` are not supported yet
+        # (JuliaDiff/DifferentiationInterface.jl#1067). Throw before
+        # `DI.prepare_jacobian` so tracing never hangs on scalar indexing.
+        if ReactantCore.within_compile()
+            throw(
+                ArgumentError(
+                    "Compiled nonlinear solves that need an automatic-differentiation \
+Jacobian require an analytic `jac`. Registered DifferentiationInterface cannot yet \
+build array Jacobians under Reactant `@jit`/`@compile` (see \
+JuliaDiff/DifferentiationInterface.jl#1067). Supply `NonlinearFunction(...; jac = ...)` \
+or use a quasi-Newton method with identity or diagonal initialization. Krylov / \
+Jacobian-operator linear solves are not supported under compile."
+                )
+            )
+        end
         if autodiff === nothing
             throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
                                  specified and cannot be `nothing`. Use \

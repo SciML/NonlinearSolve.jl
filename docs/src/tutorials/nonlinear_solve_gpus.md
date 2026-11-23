@@ -72,17 +72,20 @@ and thus the tolerances are adjusted accordingly.
 
 ## Whole-solve compilation with Reactant.jl
 
-Reactant arrays can be passed through the standard `NonlinearProblem` and `solve` APIs:
+Reactant arrays can be passed through the standard `NonlinearProblem` and `solve` APIs.
+Array Newton-family solves that need a concrete Jacobian require an analytic `jac`:
 
 ```julia
 import NonlinearSolve as NLS
 import Reactant
+import LinearAlgebra: diagm
 
 f(u, p) = u .* u .- p
+jac(u, p) = diagm(0 => 2 .* u)
 
 function reactant_solve(u0, p)
-    prob = NLS.NonlinearProblem(f, u0, p)
-    return NLS.solve(prob, NLS.SimpleBroyden())
+    prob = NLS.NonlinearProblem(NLS.NonlinearFunction(f; jac), u0, p)
+    return NLS.solve(prob, NLS.NewtonRaphson())
 end
 
 u0 = Reactant.to_rarray(Float32[1, 1])
@@ -91,16 +94,43 @@ sol = Reactant.@jit reactant_solve(u0, p)
 ```
 
 The nonlinear iteration uses a traced `while` operation. The array shapes are fixed for a
-compiled executable, but convergence and the number of quasi-Newton steps are determined at
+compiled executable, but convergence and the number of nonlinear steps are determined at
 runtime. Use `Reactant.@compile` instead of `Reactant.@jit` when the executable will be
 called repeatedly with new initial values or parameters of the same shape.
 
 Algorithms follow their normal `solve` dispatch during Reactant compilation. There is no
 separate allowlist or fallback algorithm: unsupported operations report their errors from
-Reactant or the package that implements them. `SimpleBroyden` and `SimpleKlement` are tested
-with square, out-of-place `NonlinearProblem`s. Jacobian-based algorithms additionally depend
-on Reactant support in their configured differentiation backend; NonlinearSolve.jl does not
-provide Reactant-specific differentiation overloads.
+Reactant or the package that implements them. The Reactant test group covers first-order
+methods and polyalgorithms with out-of-place nonlinear and least-squares problems.
+Compiled array solves that need a concrete automatic-differentiation Jacobian require an
+analytic `jac`: registered DifferentiationInterface cannot yet build array Jacobians under
+`@jit`/`@compile`
+(see [JuliaDiff/DifferentiationInterface.jl#1067](https://github.com/JuliaDiff/DifferentiationInterface.jl/pull/1067)).
+Quasi-Newton methods with identity or diagonal initialization work without an analytic
+Jacobian. Krylov / Jacobian-operator linear solves are not supported under compile. Scalar
+problems may use AD derivatives under compile; automatic backend selection prefers
+`DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))`.
+An explicit `autodiff = AutoEnzyme(; mode = Forward)` also works for some scalar solves.
+
+The default safe-best termination mode retains the iterate with the smallest residual
+norm and checks for stalled progress. Its protective check reports a non-finite residual
+as `ReturnCode.Unstable`. With an explicit `AbsNormTerminationMode`, a non-finite
+residual fails the convergence test and iteration continues.
+
+Compiled first-order solves require an inactive Jacobian reuse policy. For problems where
+the automatic policy enables reuse, set `jacobian_reuse = false` to request a fresh
+Jacobian at each step. The compiled matrix linear-solve callback supports the default
+linear solver only.
+
+Quasi-Newton Jacobian reset rules and `max_resets` are evaluated under compile. The compiled
+solver updates the `dfu` baseline after a du-stall reset and evaluates reset rules while
+`force_reinit` is set. A failed linear solve under compile retries on the next
+step rather than recursively inside the same step.
+
+`DFSane` throws an `ArgumentError` under compilation until its solver cache integrates
+the traced non-monotone search provided by LineSearch.jl. Broyden configured with
+an explicit AD line search (for example `BackTracking(autodiff = AutoForwardDiff())`) also
+fails loudly under compile, because dual numbers cannot wrap traced values.
 
 The returned solution is an ordinary `NonlinearSolution`. `u` and `resid` are device
 arrays, and `retcode` is a `Reactant.ConcreteEnum{ReturnCode.T}` that can be
