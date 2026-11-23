@@ -331,11 +331,10 @@ function SciMLBase.__init(
             )
         end
 
-        # A reuse decision compares residual norms, which are traced under Reactant; there
-        # the Jacobian is recomputed on every step instead.
         jacobian_reuse = resolve_jacobian_reuse(alg.jacobian_reuse, u)
-        ReactantCore.within_compile() &&
-            (jacobian_reuse = without_jacobian_reuse(jacobian_reuse))
+        if ReactantCore.within_compile() && reuses_jacobian(jacobian_reuse)
+            throw(ArgumentError("Reactant compilation requires jacobian_reuse = false when the Jacobian reuse policy is active."))
+        end
         jacobian_reuse_cache = init_jacobian_reuse_cache(jacobian_reuse, J, fu, internalnorm)
 
         trace = NonlinearSolveBase.init_nonlinearsolve_trace(
@@ -522,6 +521,15 @@ function _reject_first_order_descent!(cache)
     return nothing
 end
 
+function _apply_accepted_trial_traced!(cache, u_new, accepted)
+    ReactantCore.@trace track_numbers = false if accepted
+        @bb copyto!(cache.u, u_new)
+        cache.u = NonlinearSolveBase.apply_postcondition!!(cache.u, cache.u_cache, cache)
+        Utils.evaluate_f!(cache, cache.u, cache.p)
+    end
+    return nothing
+end
+
 function _perform_first_order_step!(
         cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
     )
@@ -559,14 +567,11 @@ function _perform_first_order_step!(
                 cache.trustregion_cache, J, cache.fu, cache.u, δu, descent_intermediates
             )
             if ReactantCore.within_compile()
-                @bb @. cache.u = ifelse(tr_accepted, u_new, cache.u)
                 if NonlinearSolveBase.get_postcondition(cache) === nothing
+                    @bb @. cache.u = ifelse(tr_accepted, u_new, cache.u)
                     @bb @. cache.fu = ifelse(tr_accepted, fu_new, cache.fu)
                 else
-                    cache.u = NonlinearSolveBase.apply_postcondition!!(
-                        cache.u, cache.u_cache, cache
-                    )
-                    Utils.evaluate_f!(cache, cache.u, cache.p)
+                    _apply_accepted_trial_traced!(cache, u_new, tr_accepted)
                 end
                 α = tr_accepted
                 # Jacobian reuse is disabled under compile; treat the step as accepted.

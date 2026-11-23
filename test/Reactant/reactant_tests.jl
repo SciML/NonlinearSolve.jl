@@ -473,3 +473,5 @@ end
     @test Array(sol.u) ≈ Array(sol_host.u) rtol = 1.0f-4
     @test !isnothing(sol.original)
 end
+
+include("first_order_tests.jl")
