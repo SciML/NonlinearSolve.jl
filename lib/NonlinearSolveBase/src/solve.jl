@@ -367,6 +367,10 @@ function _run_cache_to_completion!(
     # A traced return code cannot be branched on; initialization failures are host events.
     !ReactantCore.within_compile() && cache.retcode == ReturnCode.InitialFailure && return cache
     dealias_traced!(cache)
+    # A bare `nothing` denotes an uninitialized slot to the traced while loop.
+    if ReactantCore.within_compile() && step_observer === nothing
+        step_observer = Returns(nothing)
+    end
     ReactantCore.@trace track_numbers = false while not_terminated(cache)
         CommonSolve.step!(cache)
         dealias_traced!(cache)
