@@ -112,16 +112,23 @@ problems may use AD derivatives under compile; automatic backend selection prefe
 `DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))`.
 An explicit `autodiff = AutoEnzyme(; mode = Forward)` also works for some scalar solves.
 
-Under compilation the default termination mode is plain
-`AbsNormTerminationMode` rather than the host's `AbsNormSafeBestTerminationMode`: there is
-no best-iterate rollback and no stall detection. Convergence still requires a finite
-residual; a non-finite residual stops with `ReturnCode.Unstable`. Quasi-Newton Jacobian
-reset rules and `max_resets` are evaluated under compile. Compiled reset-rule bookkeeping
-can differ from the host: the `dfu` baseline after a du-stall reset, and rules that still
-run while `force_reinit` is set. A failed linear solve under compile retries on the next
-step rather than recursively inside the same step. `DFSane` is not supported under
-`@jit`/`@compile` yet (its non-monotone line search is not Reactant-traceable; that work
-belongs in LineSearch.jl) and throws an explicit `ArgumentError`. Broyden configured with
+The default safe-best termination mode retains the iterate with the smallest residual
+norm and checks for stalled progress. Its protective check reports a non-finite residual
+as `ReturnCode.Unstable`. With an explicit `AbsNormTerminationMode`, a non-finite
+residual fails the convergence test and iteration continues.
+
+Compiled first-order solves require an inactive Jacobian reuse policy. For problems where
+the automatic policy enables reuse, set `jacobian_reuse = false` to request a fresh
+Jacobian at each step. The compiled matrix linear-solve callback supports the default
+linear solver only.
+
+Quasi-Newton Jacobian reset rules and `max_resets` are evaluated under compile. The compiled
+solver updates the `dfu` baseline after a du-stall reset and evaluates reset rules while
+`force_reinit` is set. A failed linear solve under compile retries on the next
+step rather than recursively inside the same step.
+
+`DFSane` throws an `ArgumentError` under compilation until its solver cache integrates
+the traced non-monotone search provided by LineSearch.jl. Broyden configured with
 an explicit AD line search (for example `BackTracking(autodiff = AutoForwardDiff())`) also
 fails loudly under compile, because dual numbers cannot wrap traced values.
 

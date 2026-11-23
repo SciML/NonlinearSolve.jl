@@ -212,9 +212,7 @@ function InternalAPI.step!(
     if ReactantCore.within_compile()
         throw(
             ArgumentError(
-                "DFSane's non-monotone line search is not Reactant-traceable yet. \
-             Use a first-order or quasi-Newton method under `@jit`/`@compile`, \
-             or wait for a traceable line search in LineSearch.jl."
+                "DFSane does not yet integrate the traced non-monotone line search under Reactant compilation."
             )
         )
     end
