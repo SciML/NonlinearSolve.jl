@@ -475,3 +475,4 @@ end
 end
 
 include("first_order_tests.jl")
+include("linear_tests.jl")

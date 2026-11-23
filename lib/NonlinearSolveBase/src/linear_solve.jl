@@ -25,7 +25,6 @@ end
     b
     u
     p
-    linsolve
     kwargs
     stats::NLStats
 end
@@ -92,8 +91,14 @@ function construct_linear_solver(
     if (A isa Number && b isa Number) || (A isa Diagonal)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif ReactantCore.within_compile()
+        linsolve === nothing || throw(
+            ArgumentError(
+                "Reactant compilation with an explicit matrix linear solver is unsupported: " *
+                    "the LinearSolve callback does not return its solver status."
+            )
+        )
         reactant_kwargs = _without_linear_tolerances((; kwargs...))
-        return ReactantLinearSolveCache(A, b, u, p, linsolve, reactant_kwargs, stats)
+        return ReactantLinearSolveCache(A, b, u, p, reactant_kwargs, stats)
     elseif linsolve isa typeof(\)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve === nothing
@@ -148,9 +153,7 @@ function (cache::ReactantLinearSolveCache)(;
         cache.A, cache.b, LinearSolveParameters(cache.u, cache.p); u0 = cache.u
     )
     solve_kwargs = merge(cache.kwargs, (; kwargs...))
-    linres = cache.linsolve === nothing ?
-        SciMLBase.solve(linprob; solve_kwargs...) :
-        SciMLBase.solve(linprob, cache.linsolve; solve_kwargs...)
+    linres = SciMLBase.solve(linprob; solve_kwargs...)
     cache.u = linres.u
     return LinearSolveResult(
         ; u = linres.u, success = linres.retcode !== ReturnCode.Failure
