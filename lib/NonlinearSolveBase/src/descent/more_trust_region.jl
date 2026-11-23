@@ -810,6 +810,9 @@ function _more_generic_λloop!(
     i, done = maybe_traced(0), maybe_traced(false)
     λ, l, uλ, ϕ_prev, λ_prev = dealias_traced!((λ, l, uλ, ϕ_prev, λ_prev))
     dealias_traced!(cache)
+    if ReactantCore.within_compile()
+        dtd = Some(dtd)
+    end
     ReactantCore.@trace track_numbers = false while required & !done & (i < cache.maxiters)
         i += 1
         λ, l, uλ, got_step, pos_bound, ϕ_prev, λ_prev, done = _more_generic_iteration!(
@@ -826,6 +829,9 @@ function _more_generic_iteration!(
         cache, J_, Jᵀfu, fu, u, dtd, idx1, Δ, kwargs,
         λ, l, uλ, got_step, pos_bound, ϕ_prev, λ_prev, i
     )
+    if ReactantCore.within_compile()
+        dtd = something(dtd)
+    end
     linres = _more_damped_solve(cache, cache.lincache, J_, Jᵀfu, fu, λ, u, kwargs)
     valid = linres.success & _all_finite(linres.u)
     if !ReactantCore.within_compile() && !valid
