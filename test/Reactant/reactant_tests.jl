@@ -20,6 +20,17 @@ end
     end
 end
 
+@testset "Dealiasing a Julia buffer of traced scalars" begin
+    function scalar_buffer_sum(x)
+        buf = Vector{typeof(x)}(undef, 2)
+        buf[1] = buf[2] = x
+        values = NonlinearSolveBase.dealias_traced!(buf)::typeof(buf)
+        return values[1] + values[2]
+    end
+    result = Reactant.@jit scalar_buffer_sum(Reactant.ConcreteRNumber(3.0f0))
+    @test Float32(result) == 6.0f0
+end
+
 # Verbatim tutorial example from docs/src/tutorials/nonlinear_solve_gpus.md
 # ("Whole-solve compilation with Reactant.jl").
 @testset "docs/tutorials/nonlinear_solve_gpus.md Reactant NewtonRaphson example" begin

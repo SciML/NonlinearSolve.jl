@@ -40,6 +40,13 @@ function _dealias_traced!(x, scalar, visited)
     x isa scalar && return oftype(x, x + zero(x))
     if x isa DenseArray
         eltype(x) <: scalar || return x
+        if x isa Array
+            result = copy(x)
+            for i in eachindex(x)
+                isassigned(x, i) && (result[i] = _dealias_traced!(x[i], scalar, visited))
+            end
+            return result
+        end
         return oftype(x, x .+ zero(eltype(x)))
     end
     (isbits(x) || x isa Union{Type, Module, AbstractString, Symbol}) && return x
