@@ -54,7 +54,7 @@ residual_only_termination_mode(::AbsNormTerminationMode) = true
     mode
     initial_objective
     objectives_trace
-    nsteps::Int
+    nsteps
     saved_values
     u0_norm
     step_norm_trace
@@ -152,9 +152,15 @@ function CommonSolve.init(
                 (Utils.apply_norm(mode.internalnorm, du, u) + eps(TT))
             u0_norm = mode.max_stalled_steps === nothing ? nothing : L2_NORM(u)
         end
-        objectives_trace = Vector{TT}(undef, mode.patience_steps)
-        step_norm_trace = mode.max_stalled_steps === nothing ? nothing :
-            Vector{TT}(undef, mode.max_stalled_steps)
+        if ReactantCore.within_compile()
+            objectives_trace = fill(zero(initial_objective), mode.patience_steps)
+            step_norm_trace = mode.max_stalled_steps === nothing ? nothing :
+                fill(zero(initial_objective), mode.max_stalled_steps)
+        else
+            objectives_trace = Vector{TT}(undef, mode.patience_steps)
+            step_norm_trace = mode.max_stalled_steps === nothing ? nothing :
+                Vector{TT}(undef, mode.max_stalled_steps)
+        end
         u_diff_cache = step_norm_trace === nothing ? nothing : alloc_u_diff_cache(u)
         best_value = initial_objective
         max_stalled_steps = mode.max_stalled_steps
@@ -173,7 +179,7 @@ function CommonSolve.init(
     leastsq = typeof(prob) <: NonlinearLeastSquaresProblem
     return NonlinearTerminationModeCache(
         u_unaliased, maybe_traced(ReturnCode.Default), abstol, reltol, best_value, mode,
-        initial_objective, objectives_trace, 0, saved_value_prototype,
+        initial_objective, objectives_trace, maybe_traced(0), saved_value_prototype,
         u0_norm, step_norm_trace, max_stalled_steps, u_diff_cache, leastsq
     )
 end
@@ -233,19 +239,9 @@ end
 function (cache::NonlinearTerminationModeCache)(
         mode::AbstractNonlinearTerminationMode, du, u, uprev, abstol, reltol, args...
     )
-    # Under Reactant compile only: `maximum`/`norm` reductions drop NaN, so an
-    # all-NaN residual can look like `-Inf ≤ abstol`. Require a finite residual
-    # before declaring Success; non-finite residuals stop with `Unstable`.
-    # Host AbsNorm/Rel/Norm modes keep master's iterate-to-MaxIters behaviour.
     if ReactantCore.within_compile()
-        finite = _residual_finite(du)
-        converged_raw = check_convergence(mode, du, u, uprev, abstol, reltol)
-        converged = ifelse(finite, converged_raw, true)
-        cache.retcode = ifelse(
-            finite,
-            ifelse(converged_raw, ReturnCode.Success, cache.retcode),
-            ReturnCode.Unstable
-        )
+        converged = _residual_finite(du) & check_convergence(mode, du, u, uprev, abstol, reltol)
+        cache.retcode = ifelse(converged, ReturnCode.Success, cache.retcode)
         return converged
     end
     if check_convergence(mode, du, u, uprev, abstol, reltol)
@@ -268,6 +264,12 @@ function (cache::NonlinearTerminationModeCache)(
         objective = Utils.apply_norm(mode.internalnorm, du) /
             (Utils.apply_norm(mode.internalnorm, du, u) + eps(reltol))
         criteria = reltol
+    end
+
+    if ReactantCore.within_compile()
+        return _check_safe_termination_traced!(
+            cache, mode, du, u, uprev, objective, criteria, abstol, reltol, args
+        )
     end
 
     # Protective Break
@@ -353,6 +355,52 @@ function (cache::NonlinearTerminationModeCache)(
     return false
 end
 
+function _check_safe_termination_traced!(
+        cache, mode, du, u, uprev, objective, criteria, abstol, reltol, args
+    )
+    unstable = !_residual_finite(du) | !isfinite(objective)
+    if mode.protective_threshold !== nothing
+        unstable |= objective > cache.initial_objective * mode.protective_threshold * length(du)
+    end
+    if mode isa AbstractSafeBestNonlinearTerminationMode
+        improved = !unstable & (objective < cache.best_objective_value)
+        cache.best_objective_value = ifelse(improved, objective, cache.best_objective_value)
+        update_u!!(cache, select(improved, u, cache.u))
+        if cache.saved_values !== nothing && !isempty(args)
+            cache.saved_values = map((v, old) -> select(improved, v, old), args, cache.saved_values)
+        end
+    end
+
+    converged = objective ≤ criteria
+    cache.nsteps += 1
+    _record_history_traced!(cache.objectives_trace, cache.nsteps, objective)
+    min_obj, max_obj = minimum(cache.objectives_trace), maximum(cache.objectives_trace)
+    stalled = (cache.nsteps > mode.patience_steps) &
+        (objective ≤ mode.patience_objective_multiplier * criteria) &
+        (min_obj < mode.min_max_factor * max_obj)
+
+    if cache.step_norm_trace !== nothing
+        step_norm = L2_NORM(u .- uprev)
+        _record_history_traced!(cache.step_norm_trace, cache.nsteps, step_norm)
+        max_step_norm = maximum(cache.step_norm_trace)
+        step_threshold = mode isa AbsNormModes ? abstol : reltol * (max_step_norm + cache.u0_norm)
+        stalled |= (cache.nsteps > mode.max_stalled_steps) & (max_step_norm ≤ step_threshold)
+    end
+
+    stalled_code = cache.leastsq ? ReturnCode.StalledSuccess : ReturnCode.Stalled
+    cache.retcode = ifelse(
+        unstable, ReturnCode.Unstable,
+        ifelse(converged, ReturnCode.Success, ifelse(stalled, stalled_code, ReturnCode.Failure))
+    )
+    return unstable | converged | stalled
+end
+
+function _record_history_traced!(history, step, value)
+    i = mod1(step, length(history))
+    history .= ifelse.(axes(history, 1) .== i, value, history)
+    return nothing
+end
+
 # Check Convergence
 function check_convergence(::RelTerminationMode, duₙ, uₙ, __, ___, reltol)
     if Utils.fast_scalar_indexing(duₙ)
@@ -403,13 +451,10 @@ end
 function default_termination_mode(
         ::Union{ImmutableNonlinearProblem, NonlinearProblem}, ::Val{:regular}
     )
-    ReactantCore.within_compile() &&
-        return AbsNormTerminationMode(Base.Fix1(maximum, abs))
     return AbsNormSafeBestTerminationMode(Base.Fix1(maximum, abs); max_stalled_steps = 32)
 end
 
 function default_termination_mode(::NonlinearLeastSquaresProblem, ::Val{:regular})
-    ReactantCore.within_compile() && return AbsNormTerminationMode(Base.Fix2(norm, 2))
     return AbsNormSafeBestTerminationMode(Base.Fix2(norm, 2); max_stalled_steps = 32)
 end
 
@@ -442,8 +487,9 @@ function check_and_update!(tc_cache, cache, fu, u, uprev, mode)
     converged = tc_cache(fu, u, uprev)
     cache.retcode = ifelse(converged, tc_cache.retcode, cache.retcode)
     cache.force_stop = converged | cache.force_stop
-    # Only the best-iterate modes have anything to copy back; they are not traced.
-    if mode isa AbstractSafeBestNonlinearTerminationMode && converged
+    if ReactantCore.within_compile() && mode isa AbstractSafeBestNonlinearTerminationMode
+        _restore_best_traced!(tc_cache, cache, converged)
+    elseif mode isa AbstractSafeBestNonlinearTerminationMode && converged
         update_from_termination_cache!(tc_cache, cache, mode, u)
     end
     return nothing
@@ -467,6 +513,7 @@ function update_from_termination_cache!(
     # `Best` modes retain the lowest-objective iterate, which is usually the one the solve
     # ended on; only a genuine rollback needs the residual recomputed.
     tc_cache.u === nothing && return nothing
+    ReactantCore.within_compile() && return _restore_best_traced!(tc_cache, cache, true)
     get_u(cache) == tc_cache.u && return nothing
     if SciMLBase.isinplace(cache)
         copyto!(get_u(cache), tc_cache.u)
@@ -474,4 +521,17 @@ function update_from_termination_cache!(
         SciMLBase.set_u!(cache, tc_cache.u)
     end
     return Utils.evaluate_f!(cache, get_u(cache), cache.p)
+end
+
+function _restore_best_traced!(tc_cache, cache, finished)
+    restore = finished & (get_u(cache) != tc_cache.u)
+    ReactantCore.@trace track_numbers = false if restore
+        if SciMLBase.isinplace(cache)
+            copyto!(get_u(cache), tc_cache.u)
+        else
+            SciMLBase.set_u!(cache, copy(tc_cache.u))
+        end
+        Utils.evaluate_f!(cache, get_u(cache), cache.p)
+    end
+    return nothing
 end

@@ -384,10 +384,7 @@ end
 
 # Store-inverse Broyden inverts the initial Jacobian on the first compiled step.
 # true_jacobian cases supply an analytic `jac` because AD array Jacobians under
-# compile throw (JuliaDiff/DifferentiationInterface.jl#1067). Diagonal Broyden on
-# these problems diverges to NaN: host AbsNorm stays MaxIters while compile's
-# finite-residual guard returns Unstable, so diagonal cases assert at maxiters=1
-# (first-step match) only.
+# compile throw (JuliaDiff/DifferentiationInterface.jl#1067).
 @testset "Broyden first-step inverse under compile: $pname $aname" for (
         pname, f, jac, u0, aname, alg,
     ) in (
@@ -478,3 +475,4 @@ include("first_order_tests.jl")
 include("linear_tests.jl")
 include("polyalgorithm_tests.jl")
 include("diagonal_tests.jl")
+include("termination_tests.jl")
