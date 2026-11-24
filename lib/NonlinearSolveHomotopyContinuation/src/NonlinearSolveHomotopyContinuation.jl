@@ -20,6 +20,8 @@ export HomotopyContinuationJL, TaylorHomotopyContinuationJL, HomotopyNonlinearFu
 
 """
     HomotopyContinuationJL{AllRoots, ComplexRoots}(; autodiff = true, kwargs...)
+    HomotopyContinuationJL{AllRoots}(autodiff, kwargs) =
+        HomotopyContinuationJL{AllRoots, Val{false}}(autodiff, kwargs)
     HomotopyContinuationJL(; kwargs...) = HomotopyContinuationJL{false}(; kwargs...)
 
 This algorithm is an interface to `HomotopyContinuation.jl`. It is only valid for
@@ -40,9 +42,6 @@ depends on the initial guess provided to the `NonlinearProblem` being solved. Th
 does not require that the polynomial function is traceable via HomotopyContinuation.jl's
 symbolic variables.
 
-If `ComplexRoots` is `Val{true}`, complex roots will be returned. If `Val{false}` (default),
-only real roots will be returned.
-
 HomotopyContinuation.jl requires the jacobian of the system. In case a jacobian function
 is provided, it will be used. Otherwise, the `autodiff` keyword argument controls the
 autodiff method used to compute the jacobian. A value of `true` refers to
@@ -61,6 +60,8 @@ end
 function HomotopyContinuationJL{AllRoots, ComplexRoots}(;
         autodiff = true, kwargs...
     ) where {AllRoots, ComplexRoots}
+    ComplexRoots === Val{true} || ComplexRoots === Val{false} ||
+        throw(ArgumentError("ComplexRoots must be `Val{true}` or `Val{false}`, got `$(ComplexRoots)`"))
     if autodiff isa Bool
         autodiff = autodiff ? AutoForwardDiff() : AutoFiniteDiff()
     end
@@ -72,6 +73,10 @@ function HomotopyContinuationJL{AllRoots}(; autodiff = true, kwargs...) where {A
 end
 
 HomotopyContinuationJL(; kwargs...) = HomotopyContinuationJL{false}(; kwargs...)
+
+function HomotopyContinuationJL{AllRoots}(autodiff, kwargs) where {AllRoots}
+    return HomotopyContinuationJL{AllRoots, Val{false}}(autodiff, kwargs)
+end
 
 function HomotopyContinuationJL(
         alg::HomotopyContinuationJL{R, C}; kwargs...
