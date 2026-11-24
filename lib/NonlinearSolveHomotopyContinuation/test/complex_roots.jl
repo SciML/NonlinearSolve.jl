@@ -137,14 +137,24 @@ end
         r[1] = u[1]^2 + (1 + 4im) * u[1] + 2
         return nothing
     end
+    # a start at exactly zero makes the HomotopyContinuation 2.17 tracker stop at t = 1
     prob = NonlinearProblem(
-        NonlinearFunction(singleroot_f; resid_prototype = zeros(1)), [0.0]
+        NonlinearFunction(singleroot_f; resid_prototype = zeros(1)), [0.5]
     )
     sol = solve(prob, HomotopyContinuationJL{false, Val{true}}(; threading = false))
     @test SciMLBase.successful_retcode(sol)
     @test abs(sol.u[1]^2 + (1 + 4im) * sol.u[1] + 2) < 1.0e-10
     @test sol.resid isa AbstractVector{<:Complex}
     @test size(sol.resid) == (1,)
+    @test abs(sol.resid[1]) < 1.0e-10
+
+    sol = solve(
+        NonlinearProblem(NonlinearFunction(singleroot_f), [0.5]),
+        HomotopyContinuationJL{false, Val{true}}(; threading = false)
+    )
+    @test SciMLBase.successful_retcode(sol)
+    @test abs(sol.u[1]^2 + (1 + 4im) * sol.u[1] + 2) < 1.0e-10
+    @test sol.resid isa AbstractVector{<:Complex}
     @test abs(sol.resid[1]) < 1.0e-10
 end
 

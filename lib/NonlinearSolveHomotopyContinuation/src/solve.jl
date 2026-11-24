@@ -64,7 +64,7 @@ function homotopy_evaluate_f(prob::NonlinearProblem, u, ::Type{Val{true}})
     SciMLBase.isinplace(prob) || return NonlinearSolveBase.Utils.evaluate_f(prob, u)
     proto = prob.f.resid_prototype
     fu = if proto === nothing
-        similar(u)
+        similar(u, complex(eltype(u)))
     else
         similar(proto, promote_type(eltype(u), Complex{real(eltype(proto))}))
     end
@@ -140,7 +140,7 @@ function CommonSolve.solve(
     p = parameter_values(prob)
 
     u0_p = f.polynomialize(u0, p)
-    fu0 = NonlinearSolveBase.Utils.evaluate_f(prob, u0_p)
+    fu0 = homotopy_evaluate_f(prob, u0_p, ComplexRoots)
 
     homotopy = GuessHomotopy(hcsys, fu0)
     orig_sol = HC.solve(
