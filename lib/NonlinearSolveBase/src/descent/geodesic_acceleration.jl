@@ -109,12 +109,15 @@ function InternalAPI.solve!(
         skip_solve, kwargs...
     ).δu
 
-    @bb @. cache.u_cache = u + cache.h * v
+    cache.u_cache = _map_step!!((x, h, v) -> x + h * v, cache.u_cache, u, cache.h, v)
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
 
     J !== nothing && @bb(cache.Jv = J × vec(v))
     Jv = Utils.restructure(cache.fu_cache, cache.Jv)
-    @bb @. cache.fu_cache = (2 / cache.h) * ((cache.fu_cache - fu) / cache.h - Jv)
+    cache.fu_cache = _map_step!!(
+        (f1, f0, h, jv) -> (2 / h) * ((f1 - f0) / h - jv),
+        cache.fu_cache, cache.fu_cache, fu, cache.h, Jv
+    )
 
     a = InternalAPI.solve!(
         cache.descent_cache, J, cache.fu_cache, u, Val(2 * Utils.unwrap_val(idx));
@@ -125,7 +128,10 @@ function InternalAPI.solve!(
     norm_a = cache.internalnorm(a)
 
     cache.last_step_accepted = 2 * norm_a ≤ norm_v * cache.α
-    @bb @. δu = ifelse(cache.last_step_accepted, v + a / 2, δu)
+    δu = _map_step!!(
+        (accepted, v, a, step) -> ifelse(accepted, v + a / 2, step),
+        δu, cache.last_step_accepted, v, a, δu
+    )
     set_du!(cache, δu, idx)
 
     return DescentResult(; δu, success = cache.last_step_accepted, extras = (; a, v))

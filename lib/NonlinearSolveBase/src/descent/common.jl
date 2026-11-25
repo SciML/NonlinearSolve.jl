@@ -84,3 +84,9 @@ function _more_scaling(s)
                        or `Auto`), got `$(s)`.")
     )
 end
+
+@inline function _map_step!!(f::F, dest, args::Vararg{Any, N}) where {F, N}
+    @bb dest .= f.(args...)
+    return dest
+end
+_map_step!!(f, dest::Number, args...) = f(args...)

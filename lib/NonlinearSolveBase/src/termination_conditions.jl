@@ -127,9 +127,10 @@ iterate a `Best` mode carries is absent from every other mode. When `u` cannot b
 into in place the difference is rebuilt each step, so this only has to fix the type.
 """
 function alloc_u_diff_cache(u)
-    (u isa Number || !ArrayInterface.can_setindex(u)) && return u .- u
+    !ArrayInterface.can_setindex(u) && return u .- u
     return similar(u)
 end
+alloc_u_diff_cache(u::Number) = u - u
 
 function CommonSolve.init(
         prob::AbstractNonlinearProblem, mode::AbstractNonlinearTerminationMode, du, u,
@@ -380,7 +381,7 @@ function _check_safe_termination_traced!(
         (min_obj < mode.min_max_factor * max_obj)
 
     if cache.step_norm_trace !== nothing
-        step_norm = L2_NORM(u .- uprev)
+        step_norm = L2_NORM(u isa Number ? u - uprev : u .- uprev)
         _record_history_traced!(cache.step_norm_trace, cache.nsteps, step_norm)
         max_step_norm = maximum(cache.step_norm_trace)
         step_threshold = mode isa AbsNormModes ? abstol : reltol * (max_step_norm + cache.u0_norm)

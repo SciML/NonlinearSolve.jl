@@ -530,6 +530,18 @@ function _apply_accepted_trial_traced!(cache, u_new, accepted)
     return nothing
 end
 
+_trial_iterate!!(dest::Number, u, δu) = u + δu
+function _trial_iterate!!(dest, u, δu)
+    @bb @. dest = u + δu
+    return dest
+end
+
+_accept_trial!!(old::Number, trial, accepted) = ifelse(accepted, trial, old)
+function _accept_trial!!(old, trial, accepted)
+    @bb @. old = ifelse(accepted, trial, old)
+    return old
+end
+
 function _perform_first_order_step!(
         cache, J, δu, descent_intermediates, has_forcing, defer_residual, policy_driven
     )
@@ -568,8 +580,8 @@ function _perform_first_order_step!(
             )
             if ReactantCore.within_compile()
                 if NonlinearSolveBase.get_postcondition(cache) === nothing
-                    @bb @. cache.u = ifelse(tr_accepted, u_new, cache.u)
-                    @bb @. cache.fu = ifelse(tr_accepted, fu_new, cache.fu)
+                    cache.u = _accept_trial!!(cache.u, u_new, tr_accepted)
+                    cache.fu = _accept_trial!!(cache.fu, fu_new, tr_accepted)
                 else
                     _apply_accepted_trial_traced!(cache, u_new, tr_accepted)
                 end
@@ -609,7 +621,11 @@ function _perform_first_order_step!(
         end
     elseif cache.globalization isa Val{:None}
         @static_timeit cache.timer "step" begin
-            @bb axpy!(1, δu, cache.u)
+            if cache.u isa Number
+                cache.u += δu
+            else
+                @bb axpy!(1, δu, cache.u)
+            end
             cache.u = NonlinearSolveBase.apply_postcondition!!(
                 cache.u, cache.u_cache, cache
             )

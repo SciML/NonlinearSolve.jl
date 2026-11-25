@@ -73,3 +73,9 @@ end
         @test host[2] == Int(compiled[2]) == steps
     end
 end
+
+@testset "Scalar termination scratch" begin
+    x = Reactant.ConcreteRNumber(2.0f0)
+    scratch = Reactant.@jit NonlinearSolveBase.alloc_u_diff_cache(x)
+    @test Float32(scratch) === 0.0f0
+end

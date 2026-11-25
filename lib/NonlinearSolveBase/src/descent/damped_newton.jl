@@ -344,7 +344,11 @@ function InternalAPI.solve!(
         end
     end
 
-    @bb @. δu *= -1
+    if u isa Number
+        δu = -δu
+    else
+        @bb @. δu *= -1
+    end
     set_du!(cache, δu, idx)
     return DescentResult(; δu)
 end
