@@ -364,19 +364,25 @@ end
 function _run_cache_to_completion!(
         cache::AbstractNonlinearSolveCache, step_observer = nothing
     )
-    # A traced return code cannot be branched on; initialization failures are host events.
-    !ReactantCore.within_compile() && cache.retcode == ReturnCode.InitialFailure && return cache
+    initialized = cache.retcode != ReturnCode.InitialFailure
     dealias_traced!(cache)
     # A bare `nothing` denotes an uninitialized slot to the traced while loop.
     if ReactantCore.within_compile() && step_observer === nothing
         step_observer = Returns(nothing)
     end
-    ReactantCore.@trace track_numbers = false while not_terminated(cache)
-        CommonSolve.step!(cache)
+    ReactantCore.@trace track_numbers = false while initialized & not_terminated(cache)
+        _step_unchecked!(cache)
         dealias_traced!(cache)
         _observe_nonlinear_step!(step_observer, cache)
     end
 
+    ReactantCore.@trace track_numbers = false if initialized
+        _finalize_cache!(cache)
+    end
+    return cache
+end
+
+function _finalize_cache!(cache)
     # The solver might have set a different `retcode`
     cache.retcode = ifelse(
         cache.retcode == ReturnCode.Default,
@@ -440,8 +446,6 @@ end
 function _solve_without_solution!(cache::AbstractNonlinearSolveCache)
     if applicable(InternalAPI.step!, cache) && hasfield(typeof(cache), :termination_cache) &&
             hasfield(typeof(cache), :trace)
-        # A traced return code cannot be branched on; initialization failures are host
-        # events.
         !ReactantCore.within_compile() && cache.retcode == ReturnCode.InitialFailure &&
             return cache
         _run_cache_to_completion!(cache)
@@ -505,7 +509,7 @@ end
     push!(
         calls,
         quote
-            if !ReactantCore.within_compile() && cache.retcode == ReturnCode.InitialFailure
+            if cache.retcode == ReturnCode.InitialFailure
                 u = $(SII.state_values)(cache)::_uType
                 return build_solution_less_specialize(
                     cache.prob, cache.alg, u,
@@ -652,10 +656,11 @@ function SciMLBase.__solve(
     return __generated_polysolve(prob, alg, args...; kwargs...)
 end
 
-function _poly_success(retcode)
-    return (retcode == ReturnCode.Success) | (retcode == ReturnCode.Terminated) |
-        (retcode == ReturnCode.FloatingPointLimit)
+const POLY_SUCCESS_CODES = filter(instances(ReturnCode.T)) do code
+    SciMLBase.successful_retcode(code) && code != ReturnCode.StalledSuccess
 end
+
+_poly_success(retcode) = mapreduce(code -> retcode == code, |, POLY_SUCCESS_CODES)
 
 function _poly_resid_norm(prob::AbstractNonlinearProblem, resid)
     fx = if prob isa NonlinearLeastSquaresProblem
@@ -718,17 +723,16 @@ function _polysolve_compile_path(
         member_prob, alg.algs[alg.start_index], solve_args...;
         stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
     )
-    u, resid, retcode = best_sol.u, best_sol.resid, best_sol.retcode
+    u, resid, retcode = copy(best_sol.u), copy(best_sol.resid), best_sol.retcode
     best_norm = _poly_resid_norm(prob, resid)
     done = _poly_success(retcode)
     # Branch assigns only loop state (u/resid/retcode/…): a `NonlinearSolution`
     # as `@trace if` output StackOverflows in Reactant `set_mlir_data!`.
     for i in (alg.start_index + 1):N
         alg_i = alg.algs[i]
-        alias_u0 && copyto!(member_prob.u0, u0)
         ReactantCore.@trace track_numbers = false if !done
             u, resid, retcode, best_norm, done = _polysolve_compile_member(
-                member_prob, alg_i, solve_args, stats, alias_u0, verbose, kwargs,
+                member_prob, alg_i, solve_args, stats, u0, alias_u0, verbose, kwargs,
                 u, resid, retcode, best_norm
             )
         end
@@ -744,9 +748,10 @@ function _polysolve_compile_path(
 end
 
 function _polysolve_compile_member(
-        prob, alg, solve_args, stats, alias_u0, verbose, kwargs,
+        prob, alg, solve_args, stats, u0, alias_u0, verbose, kwargs,
         u, resid, retcode, best_norm
     )
+    alias_u0 && copyto!(prob.u0, u0)
     sol = SciMLBase.__solve(
         prob, alg, solve_args...;
         stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
@@ -754,7 +759,7 @@ function _polysolve_compile_member(
     success = _poly_success(sol.retcode)
     resid_norm = _poly_resid_norm(prob, sol.resid)
     better = success | (resid_norm < best_norm)
-    return select(better, sol.u, u), select(better, sol.resid, resid),
+    return select(better, copy(sol.u), u), select(better, copy(sol.resid), resid),
         ifelse(better, sol.retcode, retcode), ifelse(better, resid_norm, best_norm),
         success
 end
@@ -973,8 +978,21 @@ NonlinearSolve.step!(cache)
 ```
 """
 function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
-    ReactantCore.within_compile() || not_terminated(cache) || return
+    if ReactantCore.within_compile()
+        dealias_traced!(cache)
+        stop = cache.nsteps + 1
+        options = (; kwargs...)
+        ReactantCore.@trace track_numbers = false while (cache.nsteps < stop) & not_terminated(cache)
+            _step_unchecked!(cache, args...; options...)
+            dealias_traced!(cache)
+        end
+        return nothing
+    end
+    not_terminated(cache) || return
+    return _step_unchecked!(cache, args...; kwargs...)
+end
 
+function _step_unchecked!(cache, args...; kwargs...)
     has_time_limit(cache) && (time_start = time())
 
     res = @static_timeit cache.timer "solve" begin
@@ -1099,9 +1117,9 @@ function SciMLBase.__init(
 end
 
 function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
-    if !ReactantCore.within_compile() && cache.retcode == ReturnCode.InitialFailure
+    if cache.retcode == ReturnCode.InitialFailure
         u = SII.state_values(cache)
-        return SciMLBase.build_solution(
+        return build_nonlinear_solution(
             cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode
         )
     end

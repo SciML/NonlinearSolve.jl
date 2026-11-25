@@ -1411,12 +1411,16 @@ _more_mindtd(dtd::AbstractVector) = minimum(dtd)
 _more_mindtd(dtd::Number) = dtd
 
 # Moré's safeguarded Newton update on φ(λ) = ‖D δu‖ - Δ: tighten the bracket [l, u] on
-# λ* and fall back to a guarded step if the Newton iterate leaves it. The fallback keeps
-# λ's type: under Reactant λ is loop-carried and must not be promoted to `Float64`.
+# λ* and fall back to a guarded step if the Newton iterate leaves it. Under Reactant the
+# loop-carried λ must retain its type.
 function _more_update_λ(λ, ϕ, Δ, pᵀD²p, pᵀD²q, l, u)
     u, l = ifelse(ϕ < 0, λ, u), ifelse(ϕ < 0, l, λ)
     λ += ϕ / Δ * pᵀD²p / pᵀD²q
-    λ = ifelse((l <= λ) & (λ <= u), λ, max(l + oftype(λ, 0.01) * (u - l), sqrt(l * u)))
+    if ReactantCore.within_compile()
+        λ = ifelse((l <= λ) & (λ <= u), λ, max(l + oftype(λ, 0.01) * (u - l), sqrt(l * u)))
+    elseif !(l <= λ <= u)
+        λ = max(l + 0.01 * (u - l), sqrt(l * u))
+    end
     return λ, l, u
 end
 
@@ -1582,8 +1586,7 @@ function InternalAPI.solve!(
         end
     end
 
-    # Host path matches master. Compile fallthrough is a helper so Trim/JET does
-    # not see select/ifelse or boxed locals from that branch.
+    # Isolate traced selection so Trim and JET see ordinary host control flow.
     ReactantCore.within_compile() && return _more_solve_traced_finalize!(
         cache, J_, gn_step, δu, dtd, idx, T, empty_extras, accept_gn, got_step
     )

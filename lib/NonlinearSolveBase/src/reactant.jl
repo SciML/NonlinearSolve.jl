@@ -26,24 +26,63 @@ places share a traced value. Reactant records only one path per traced object am
 values carried by a `@trace while` loop and requires the set of paths to be the same before
 and after each iteration; solver caches alias freely (`u_cache`/`u`, `p` in several caches,
 the problem inside the trace) and steps rebind fields, so every value is made distinct at
-the loop boundary instead. Mutable structs are updated in place, immutable ones are rebuilt.
+the loop boundary instead. Structs that need new immutable or const field bindings are rebuilt.
 """
 function dealias_traced!(x)
     ReactantCore.within_compile() || return x
     # Traced arrays expose their traced scalar as eltype. Obtain the scalar family
     # through promotion so the traversal also recognizes new device element types.
     scalar = typejoin(typeof(maybe_traced(false)), typeof(maybe_traced(0)))
-    return _dealias_traced!(x, scalar, IdDict{Any, Nothing}())
+    rebuild = IdDict{Any, Bool}()
+    _plan_const_copies!(rebuild, x, scalar, false)
+    return _dealias_traced!(x, scalar, IdDict(), rebuild)
 end
 
-function _dealias_traced!(x, scalar, visited)
+function _has_traced_leaf(x, scalar, seen)
+    x isa scalar && return true
+    x isa DenseArray && return eltype(x) <: scalar
+    (isbits(x) || x isa Union{Type, Module, AbstractString, Symbol}) && return false
+    if ismutable(x)
+        haskey(seen, x) && return false
+        seen[x] = nothing
+    end
+    T = typeof(x)
+    return any(fieldnames(T)) do name
+        return isdefined(x, name) && _has_traced_leaf(getfield(x, name), scalar, seen)
+    end
+end
+
+function _plan_const_copies!(rebuild, x, scalar, protect)
+    (
+        x isa scalar || x isa DenseArray || isbits(x) ||
+            x isa Union{Type, Module, AbstractString, Symbol}
+    ) && return
+    T = typeof(x)
+    names = fieldnames(T)
+    copy_children = if ismutable(x)
+        haskey(rebuild, x) && (!protect || rebuild[x]) && return
+        copy_object = any(names) do name
+            return (protect || isconst(T, name)) && isdefined(x, name) &&
+                _has_traced_leaf(getfield(x, name), scalar, IdDict())
+        end
+        rebuild[x] = copy_object
+    else
+        protect
+    end
+    for name in names
+        isdefined(x, name) && _plan_const_copies!(rebuild, getfield(x, name), scalar, copy_children)
+    end
+    return
+end
+
+function _dealias_traced!(x, scalar, visited, rebuild)
     x isa scalar && return oftype(x, x + zero(x))
     if x isa DenseArray
         eltype(x) <: scalar || return x
         if x isa Array
             result = copy(x)
             for i in eachindex(x)
-                isassigned(x, i) && (result[i] = _dealias_traced!(x[i], scalar, visited))
+                isassigned(x, i) && (result[i] = _dealias_traced!(x[i], scalar, visited, rebuild))
             end
             return result
         end
@@ -53,18 +92,25 @@ function _dealias_traced!(x, scalar, visited)
     T = typeof(x)
     names = fieldnames(T)
     if ismutable(x)
-        haskey(visited, x) && return x
-        visited[x] = nothing
-        for name in names
+        haskey(visited, x) && return visited[x]::T
+        # Register the shell before visiting its fields so back-references use the copy.
+        copy_object = rebuild[x]
+        result = copy_object ? ccall(:jl_new_struct_uninit, Any, (Any,), T)::T : x
+        visited[x] = result
+        for (i, name) in pairs(names)
             isdefined(x, name) || continue
             field = getfield(x, name)
-            value = _dealias_traced!(field, scalar, visited)
-            value === field || setfield!(x, name, value)
+            value = _dealias_traced!(field, scalar, visited, rebuild)::typeof(field)
+            if copy_object
+                ccall(:jl_set_nth_field, Cvoid, (Any, Csize_t, Any), result, i - 1, value)
+            elseif value !== field
+                setfield!(x, name, value)
+            end
         end
-        return x
+        return result
     end
     fields = map(name -> getfield(x, name), names)
-    values = map(field -> _dealias_traced!(field, scalar, visited), fields)
+    values = map(field -> _dealias_traced!(field, scalar, visited, rebuild), fields)
     values === fields && return x
     x isa Tuple && return values
     x isa NamedTuple && return NamedTuple{names}(values)

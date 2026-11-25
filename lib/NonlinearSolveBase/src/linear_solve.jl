@@ -23,18 +23,9 @@ end
 @concrete mutable struct ReactantLinearSolveCache <: AbstractLinearSolverCache
     A
     b
-    u
-    p
-    kwargs
-    stats::NLStats
 end
 
 SciMLBase.reinit!(::NativeJLLinearSolveCache; kwargs...) = nothing
-
-function _without_linear_tolerances(kwargs::NamedTuple)
-    names = filter(name -> name !== :abstol && name !== :reltol, keys(kwargs))
-    return NamedTuple{names}(map(name -> kwargs[name], names))
-end
 
 """
     construct_linear_solver(alg, linsolve, A, b, u, p; stats, kwargs...)
@@ -46,7 +37,9 @@ handled:
  2. `A` is `SMatrix`, then we solve it with `u = A \\ b` (using the defaults from base
     Julia) (unless a preconditioner is specified)
  3. If `linsolve` is `\\`, then we solve it with directly using `ldiv!(u, A, b)`
- 4. In all other cases, we use `alg` to solve the linear system using
+ 4. During Reactant compilation, dense matrices with the default linear solver use an SVD
+    on the device.
+ 5. In all other cases, we use `alg` to solve the linear system using
     [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl)
 
 ### Solving the System
@@ -91,14 +84,17 @@ function construct_linear_solver(
     if (A isa Number && b isa Number) || (A isa Diagonal)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif ReactantCore.within_compile()
-        linsolve === nothing || throw(
-            ArgumentError(
-                "Reactant compilation with an explicit matrix linear solver is unsupported: " *
-                    "the LinearSolve callback does not return its solver status."
+        if linsolve !== nothing || !(A isa DenseMatrix) ||
+                !issubset(keys(kwargs), (:abstol, :reltol, :verbose))
+            throw(
+                ArgumentError(
+                    "Reactant matrix solves require a dense Jacobian and the default linear solver " *
+                        "without custom linsolve_kwargs. Run the solve outside Reactant compilation " *
+                        "to use your LinearSolve configuration."
+                )
             )
-        )
-        reactant_kwargs = _without_linear_tolerances((; kwargs...))
-        return ReactantLinearSolveCache(A, b, u, p, reactant_kwargs, stats)
+        end
+        return ReactantLinearSolveCache(A, b)
     elseif linsolve isa typeof(\)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve === nothing
@@ -140,24 +136,10 @@ function construct_linear_solver(
     return LinearSolveJLCache(lincache, linsolve, stats)
 end
 
-function (cache::ReactantLinearSolveCache)(;
-        A = nothing, b = nothing, linu = nothing, reuse_A_if_factorization = false,
-        kwargs...
-    )
-    ReactantCore.within_compile() || (cache.stats.nsolve += 1)
+function (cache::ReactantLinearSolveCache)(; A = nothing, b = nothing, kwargs...)
     A === nothing || (cache.A = A)
     b === nothing || (cache.b = b)
-    linu === nothing || (cache.u = linu)
-
-    linprob = LinearProblem(
-        cache.A, cache.b, LinearSolveParameters(cache.u, cache.p); u0 = cache.u
-    )
-    solve_kwargs = merge(cache.kwargs, (; kwargs...))
-    linres = SciMLBase.solve(linprob; solve_kwargs...)
-    cache.u = linres.u
-    return LinearSolveResult(
-        ; u = linres.u, success = linres.retcode !== ReturnCode.Failure
-    )
+    return LinearSolveResult(; u = Utils.traced_matrix_solve(cache.A, cache.b))
 end
 
 """

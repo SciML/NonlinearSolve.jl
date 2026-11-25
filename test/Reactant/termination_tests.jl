@@ -53,3 +53,23 @@ end
     @test isequal(Array(compiled.u), host.u)
     @test isequal(Array(compiled.resid), host.resid)
 end
+
+@testset "Combined norm stops on the absolute or relative threshold" begin
+    f(u, p) = u .* u .- 2
+    jac(u, p) = Diagonal(2 .* u)
+    function solve_combined(u, abstol, reltol)
+        cache = init(
+            NonlinearProblem(NonlinearFunction(f; jac), u), NewtonRaphson();
+            termination_condition = NormTerminationMode(Base.Fix1(maximum, abs)), abstol, reltol
+        )
+        sol = solve!(cache)
+        return sol.retcode, NonlinearSolveBase.get_nsteps(cache)
+    end
+    u = Float32[1]
+    for (abstol, reltol, steps) in ((0.25f0, 0.0f0, 1), (0.0f0, 0.01f0, 2))
+        host = solve_combined(u, abstol, reltol)
+        compiled = Reactant.@jit solve_combined(Reactant.to_rarray(u), abstol, reltol)
+        @test host[1] == compiled[1] == ReturnCode.Success
+        @test host[2] == Int(compiled[2]) == steps
+    end
+end

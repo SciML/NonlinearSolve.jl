@@ -206,6 +206,12 @@ end
 # unbounded parameter `t` using the logistic function to map all values of `t`
 # into the interval (lb, ub).
 function transform_bounded_problem(prob, alg)
+    ReactantCore.within_compile() && throw(
+        ArgumentError(
+            "Whole-solve compilation does not support the box-bounds transformation. " *
+                "Solve the bounded problem outside Reactant compilation."
+        )
+    )
     # `initialization_data` (e.g. from ModelingToolkit) is defined in the original,
     # bounded coordinates. It must run *before* the transform so the resulting `u0`/`p`
     # are consistent; running it on the transformed problem would interpret the unbounded
