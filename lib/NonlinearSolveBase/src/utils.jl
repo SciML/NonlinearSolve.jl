@@ -335,7 +335,17 @@ function linsolve_identity!!(workspace, A::AbstractMatrix)
     return workspace.lincache(; A, b = workspace.rhs).u
 end
 
-traced_matrix_solve(A, b) = LinearAlgebra.svd(A) \ b
+function traced_matrix_solve(A, b)
+    size(A, 1) == size(A, 2) || return LinearAlgebra.svd(A) \ b
+    F = LinearAlgebra.lu(A; check = false)
+    _, sign = LinearAlgebra.logabsdet(F)
+    ReactantCore.@trace if iszero(sign)
+        x = LinearAlgebra.svd(A) \ b
+    else
+        x = F \ b
+    end
+    return x
+end
 
 function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
     return convert(promote_type(eltype(u), eltype(fu)), α)

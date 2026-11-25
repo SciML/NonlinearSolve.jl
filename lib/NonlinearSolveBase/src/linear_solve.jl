@@ -37,8 +37,8 @@ handled:
  2. `A` is `SMatrix`, then we solve it with `u = A \\ b` (using the defaults from base
     Julia) (unless a preconditioner is specified)
  3. If `linsolve` is `\\`, then we solve it with directly using `ldiv!(u, A, b)`
- 4. During Reactant compilation, dense matrices with the default linear solver use an SVD
-    on the device.
+ 4. During Reactant compilation, the default dense solver uses device-side pivoted LU for square
+    matrices and SVD for rectangular or singular systems.
  5. In all other cases, we use `alg` to solve the linear system using
     [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl)
 
