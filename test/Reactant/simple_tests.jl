@@ -104,31 +104,35 @@ end
         calls .+= 1
         return diagm(2 .* x)
     end
-    for (problem, alg) in (
+    @testset for (problem, alg) in (
             (NonlinearProblem, SimpleNewtonRaphson()),
             (NonlinearLeastSquaresProblem, SimpleGaussNewton()),
         )
-        for (initial, budget, expected, count, code) in (
-                (1.001f0, 1, 1.001f0, 0, ReturnCode.Success),
-                (2.0f0, 0, 2.0f0, 0, ReturnCode.MaxIters),
-                (2.0f0, 1, 1.25f0, 1, ReturnCode.MaxIters),
-            )
+        @testset for budget in (1, 0), compiled in (false, true)
             run(x, calls) = solve(
                 problem(NonlinearFunction(f; jac), x, calls), alg;
                 abstol = 0.01f0, maxiters = budget
             )
-            for compiled in (false, true)
+            executable = if compiled
+                Reactant.@compile run(Reactant.to_rarray([2.0f0]), Reactant.to_rarray(zeros(Int32, 1)))
+            else
+                run
+            end
+            cases = budget == 0 ? ((2.0f0, 2.0f0, 0, ReturnCode.MaxIters),) :
+                ((1.001f0, 1.001f0, 0, ReturnCode.Success), (2.0f0, 1.25f0, 1, ReturnCode.MaxIters))
+            for (initial, expected, count, code) in cases
                 x, calls = [initial], zeros(Int32, 1)
                 if compiled
                     x, calls = Reactant.to_rarray(x), Reactant.to_rarray(calls)
-                    sol = Reactant.@jit run(x, calls)
-                else
-                    sol = run(x, calls)
                 end
+                sol = executable(x, calls)
                 @test only(Array(calls)) == count
                 @test sol.retcode == code
                 @test Array(sol.u) == [expected]
                 @test Array(sol.resid) ≈ f([expected], nothing) atol = eps(Float32)
+                if count == 1
+                    @test Array(sol.resid) == [0.5625f0]
+                end
             end
         end
     end

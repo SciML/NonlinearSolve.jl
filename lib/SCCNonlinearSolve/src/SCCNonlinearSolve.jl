@@ -162,12 +162,15 @@ function sols_buffer_eltype(explicitfuns, T, uType, rType)
     return extracted === nothing ? default : extracted
 end
 
-struct SCCHistory{S} <: AbstractVector{S}
+struct SCCHistory{S} <: DenseVector{S}
     solutions::Vector{S}
 end
 
 Base.IndexStyle(::Type{<:SCCHistory}) = IndexLinear()
 Base.size(h::SCCHistory) = size(h.solutions)
+Base.strides(h::SCCHistory) = strides(h.solutions)
+Base.elsize(::Type{SCCHistory{S}}) where {S} = Base.elsize(Vector{S})
+Base.unsafe_convert(::Type{Ptr{S}}, h::SCCHistory{S}) where {S} = Base.unsafe_convert(Ptr{S}, h.solutions)
 Base.getindex(h::SCCHistory, i::Int) = h.solutions[i]
 Base.setindex!(h::SCCHistory, value, i::Int) = setindex!(h.solutions, value, i)
 

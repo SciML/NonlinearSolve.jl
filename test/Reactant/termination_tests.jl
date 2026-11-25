@@ -79,3 +79,19 @@ end
     scratch = Reactant.@jit NonlinearSolveBase.alloc_u_diff_cache(x)
     @test Float32(scratch) === 0.0f0
 end
+
+@testset "Scalar stall tracking records the active step" begin
+    function scalar_step_norm(previous, current)
+        prob = NonlinearProblem((x, p) -> x, previous)
+        mode = NonlinearSolveBase.AbsNormSafeTerminationMode(abs; max_stalled_steps = 1)
+        cache = init(prob, mode, previous, previous; abstol = 1.0f-6)
+        cache(current, current, previous)
+        return cache.nsteps, cache.step_norm_trace
+    end
+    host = scalar_step_norm(2.0f0, 1.25f0)
+    compiled = Reactant.@jit scalar_step_norm(Reactant.ConcreteRNumber(2.0f0), Reactant.ConcreteRNumber(1.25f0))
+    for (steps, trace) in (host, compiled)
+        @test Int(steps) == 1
+        @test only(Array(trace)) == 0.75f0
+    end
+end

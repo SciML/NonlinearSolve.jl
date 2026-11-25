@@ -80,9 +80,12 @@ function SciMLBase.__solve(
     ReactantCore.@trace track_numbers = false while (!solved) & (iterations < maxiters)
         @bb copyto!(xo, x)
         xo = Utils.fresh(xo)
-        # The traced Jacobian is local to the step. The host can reuse its storage.
-        J = Utils.compute_jacobian!!(compiling ? nothing : J, prob, autodiff, fx_cache, x, jac_cache)
-        δx = NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
+        δx = if compiling
+            compiled_newton_direction(prob, autodiff, fx_cache, x, jac_cache, fx)
+        else
+            J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+            NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
+        end
         if x isa Number
             x -= δx
         else
@@ -97,4 +100,9 @@ function SciMLBase.__solve(
     end
 
     return Utils.simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved)
+end
+
+function compiled_newton_direction(prob, autodiff, fx_cache, x, jac_cache, fx)
+    J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
+    return NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
 end

@@ -149,7 +149,12 @@ end
 
 @testset "Ordinary transfer callbacks receive a view" begin
     transfer(p, history::SubArray) = explicitfun2_raw(p, history)
-    for callback in (transfer, decorate(transfer))
+    function strided_transfer(p, history::StridedVector)
+        @test stride(history, 1) == 1
+        @test pointer(history, 1) == pointer(parent(history))
+        return explicitfun2_raw(p, history)
+    end
+    for f in (transfer, strided_transfer), callback in (f, decorate(f))
         blocks = [remake(prob; p = zero(prob.p)) for prob in probs]
         sol = solve(SciMLBase.SCCNonlinearProblem(blocks, [explicitfun1_raw, callback]), scc_alg)
         @test SciMLBase.successful_retcode(sol)
