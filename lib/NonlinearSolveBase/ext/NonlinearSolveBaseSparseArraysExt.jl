@@ -93,7 +93,7 @@ is not generally available.
 Utils.condition_number(J::AbstractSparseMatrix) = Utils.condition_number(Matrix(J))
 
 """
-    linsolve_workspace(A::AbstractSparseMatrix)
+    linsolve_workspace(A::AbstractSparseMatrix, linsolve = nothing)
 
 Build the inverse-Jacobian workspace on a densified copy of `A`: the inverse (and the
 identity RHS) are generically dense, and `similar` on a sparse matrix would give sparse
@@ -101,9 +101,9 @@ buffers that cannot hold them efficiently. `linsolve_identity!!` calls with spar
 then go through the dense workspace's linear-solve cache, which `copyto!`s `A` into its
 dense buffer before factorizing.
 """
-function Utils.linsolve_workspace(A::AbstractSparseMatrix)
+function Utils.linsolve_workspace(A::AbstractSparseMatrix, linsolve = nothing)
     dense_A = Matrix(A)
-    workspace, _ = Utils.linsolve_workspace(dense_A)
+    workspace, _ = Utils.linsolve_workspace(dense_A, linsolve)
     return workspace, dense_A
 end
 

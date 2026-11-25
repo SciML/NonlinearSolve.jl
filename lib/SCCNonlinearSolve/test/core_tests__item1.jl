@@ -10,7 +10,8 @@ function f(du, u, p)
     du[5] = u[3]^2 + u[5]
     du[6] = u[1] + u[2] + u[3] + u[4] + u[5] + 2.0u[6] + 2.5u[7] + 1.5u[8]
     du[7] = u[1] + u[2] + u[3] + 2.0u[4] + u[5] + 4.0u[6] - 1.5u[7] + 1.5u[8]
-    return du[8] = u[1] + 2.0u[2] + 3.0u[3] + 5.0u[4] + 6.0u[5] + u[6] - u[7] - u[8]
+    du[8] = u[1] + 2.0u[2] + 3.0u[3] + 5.0u[4] + 6.0u[5] + u[6] - u[7] - u[8]
+    return
 end
 prob = NonlinearProblem(f, zeros(8))
 sol = solve(prob, NewtonRaphson())
@@ -20,7 +21,8 @@ p = zeros(3)
 
 function f1(du, u, p)
     du[1] = cos(u[2]) - u[1]
-    return du[2] = sin(u[1] + u[2]) + u[2]
+    du[2] = sin(u[1] + u[2]) + u[2]
+    return
 end
 explicitfun1(p, sols) = nothing
 prob1 = NonlinearProblem(
@@ -31,7 +33,8 @@ sol1 = solve(prob1, NewtonRaphson())
 function f2(du, u, p)
     du[1] = 2u[2] + u[1] + 1.0
     du[2] = u[3]^2 + u[2]
-    return du[3] = u[1]^2 + u[3]
+    du[3] = u[1]^2 + u[3]
+    return
 end
 explicitfun2(p, sols) = nothing
 prob2 = NonlinearProblem(
@@ -47,10 +50,8 @@ prob3 = LinearProblem(A3, b3, zeros(3))
 function explicitfun3(p, sols)
     p[1] = -(sols[1][1] + sols[1][2] + sols[2][1] + sols[2][2] + sols[2][3])
     p[2] = -(sols[1][1] + sols[1][2] + sols[2][1] + 2.0sols[2][2] + sols[2][3])
-    return p[3] = -(
-        sols[1][1] + 2.0sols[1][2] + 3.0sols[2][1] + 5.0sols[2][2] +
-            6.0sols[2][3]
-    )
+    p[3] = -(sols[1][1] + 2.0sols[1][2] + 3.0sols[2][1] + 5.0sols[2][2] + 6.0sols[2][3])
+    return
 end
 explicitfun3(p, [sol1, sol2])
 sol3 = solve(prob3)  # LinearProblem uses default linear solver

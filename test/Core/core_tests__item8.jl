@@ -6,7 +6,8 @@ function f(du, u, p)
 
     du[1] = -0.25 * c1 * k1 * s1 * s2
     du[2] = 0.25 * c1 * k1 * s1 * s2
-    return du[3] = -0.25 * c1 * k1 * s1 * s2
+    du[3] = -0.25 * c1 * k1 * s1 * s2
+    return
 end
 
 prob = NonlinearProblem(f, [2.0, 2.0, 2.0], [1.0, 2.0, 2.5])
