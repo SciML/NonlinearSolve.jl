@@ -376,10 +376,19 @@ function _run_cache_to_completion!(
         _observe_nonlinear_step!(step_observer, cache)
     end
 
-    ReactantCore.@trace track_numbers = false if initialized
+    if ReactantCore.within_compile()
+        _finalize_initialized_cache!(cache, initialized)
+    elseif initialized
         _finalize_cache!(cache)
     end
     return cache
+end
+
+function _finalize_initialized_cache!(cache, initialized)
+    ReactantCore.@trace track_numbers = false if initialized
+        _finalize_cache!(cache)
+    end
+    return nothing
 end
 
 function _finalize_cache!(cache)
@@ -490,6 +499,9 @@ end
 @generated function CommonSolve.solve!(cache::NonlinearSolvePolyAlgorithmCache{Val{N}}) where {N}
     calls = [
         quote
+            if ReactantCore.within_compile() && !(cache.retcode isa ReturnCode.T)
+                return _solve_initialized_polycache!(cache)
+            end
             1 ≤ cache.current ≤ $(N) || error("Current choices shouldn't get here!")
             # Compute concrete types from the cache to help inference on Julia 1.10
             # where the compiler can't track them across branches.
@@ -645,6 +657,37 @@ end
     return Expr(:block, calls...)
 end
 
+function _solve_initialized_polycache!(cache)
+    cache.alg.store_original isa Val{false} || throw(
+        ArgumentError(
+            "a data-dependent initializer requires store_original=Val(false) under Reactant compilation"
+        )
+    )
+    u = copy(cache.u0)
+    resid = Utils.evaluate_f(cache.prob, u)
+    retcode = cache.retcode
+    norm = oftype(_poly_resid_norm(cache.prob, resid), Inf)
+    done = retcode == ReturnCode.InitialFailure
+    current, best = cache.current, cache.best
+    for i in cache.start_current:length(cache.caches)
+        child = cache.caches[i]
+        ReactantCore.@trace track_numbers = false if !done
+            cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
+            u, resid, retcode, norm, done = _poly_choose(
+                cache.prob, CommonSolve.solve!(child), u, resid, retcode, norm, i == cache.start_current
+            )
+            best = ifelse(done, i, best)
+            current = ifelse(done, i, i + 1)
+        end
+    end
+    cache.current, cache.best = current, best
+    if cache.alias_u0
+        copyto!(cache.u0, u)
+        u = cache.u0
+    end
+    return build_solution_less_specialize(cache.prob, cache.alg, u, resid; retcode)
+end
+
 function _solve_without_solution!(cache::NonlinearSolvePolyAlgorithmCache)
     return CommonSolve.solve!(cache)
 end
@@ -703,14 +746,29 @@ function _polysolve_compile_path(
     end
 
     prob, success = run_initialization!(prob, initializealg, prob)
-    if !success
+    if !(success isa Bool)
+        alg.store_original isa Val{false} || throw(
+            ArgumentError(
+                "a data-dependent initializer requires store_original=Val(false) under Reactant compilation"
+            )
+        )
+        u, resid, retcode = _initialized_result(prob, success) do
+            _polysolve_compile_initialized(prob, alg, solve_args, stats, alias_u0, verbose, kwargs)
+        end
+        return build_solution_less_specialize(prob, alg, u, resid; retcode)
+    elseif !success
         u = SII.state_values(prob)
         return build_solution_less_specialize(
             prob, alg, u, Utils.evaluate_f(prob, u);
             retcode = ReturnCode.InitialFailure, alg.store_original
         )
     end
+    return _polysolve_compile_initialized(prob, alg, solve_args, stats, alias_u0, verbose, kwargs)
+end
 
+function _polysolve_compile_initialized(
+        prob, alg::NonlinearSolvePolyAlgorithm{Val{N}}, solve_args, stats, alias_u0, verbose, kwargs
+    ) where {N}
     u0 = prob.u0
     u0_aliased = alias_u0 ? zero(u0) : u0
     member_prob = if alias_u0
@@ -756,9 +814,13 @@ function _polysolve_compile_member(
         prob, alg, solve_args...;
         stats, alias_u0, verbose, initializealg = SciMLBase.NoInit(), kwargs...
     )
+    return _poly_choose(prob, sol, u, resid, retcode, best_norm, false)
+end
+
+function _poly_choose(prob, sol, u, resid, retcode, best_norm, first)
     success = _poly_success(sol.retcode)
     resid_norm = _poly_resid_norm(prob, sol.resid)
-    better = success | (resid_norm < best_norm)
+    better = first | success | (resid_norm < best_norm)
     return select(better, copy(sol.u), u), select(better, copy(sol.resid), resid),
         ifelse(better, sol.retcode, retcode), ifelse(better, resid_norm, best_norm),
         success
@@ -957,7 +1019,9 @@ implementation, which is commonly `nothing`.
 # Returns
 
 The value returned by `InternalAPI.step!`. The cache is mutated in place. Calling `step!`
-on a terminated cache does nothing and returns `nothing`.
+on a terminated cache does nothing and returns `nothing`. Under Reactant compilation,
+a data-dependent termination check requires the active step to return `nothing` as well.
+A payload with a different type raises an `ArgumentError` during tracing.
 
 # Extension Rules
 
@@ -979,11 +1043,21 @@ NonlinearSolve.step!(cache)
 """
 function CommonSolve.step!(cache::AbstractNonlinearSolveCache, args...; kwargs...)
     if ReactantCore.within_compile()
+        active = not_terminated(cache)
+        if active isa Bool
+            active || return nothing
+            return _step_unchecked!(cache, args...; kwargs...)
+        end
         dealias_traced!(cache)
         stop = cache.nsteps + 1
         options = (; kwargs...)
         ReactantCore.@trace track_numbers = false while (cache.nsteps < stop) & not_terminated(cache)
-            _step_unchecked!(cache, args...; options...)
+            payload = _step_unchecked!(cache, args...; options...)
+            isnothing(payload) || throw(
+                ArgumentError(
+                    "compiled step! requires a nothing return value when termination is data-dependent"
+                )
+            )
             dealias_traced!(cache)
         end
         return nothing
@@ -1070,7 +1144,7 @@ sol = NonlinearSolve.solve!(cache)
     kwargs::Any
     initializealg
 
-    retcode::ReturnCode.T
+    retcode
 
     verbose
 end
@@ -1110,19 +1184,42 @@ function SciMLBase.__init(
         kwargs...
     )
     cache = NonlinearSolveNoInitCache(
-        prob, alg, args, kwargs, initializealg, ReturnCode.Default, verbose
+        prob, alg, args, kwargs, initializealg, _initialization_retcode(prob, initializealg), verbose
     )
     run_initialization!(cache)
     return cache
 end
 
+function _initialized_result(run, prob, success)
+    ReactantCore.@trace track_numbers = false if success
+        u, resid, retcode = _solution_values(run())
+    else
+        u = SII.state_values(prob)
+        resid = Utils.evaluate_f(prob, u)
+        retcode = maybe_traced(ReturnCode.InitialFailure)
+    end
+    return u, resid, retcode
+end
+
+_solution_values(sol) = (sol.u, sol.resid, sol.retcode)
+
 function CommonSolve.solve!(cache::NonlinearSolveNoInitCache)
-    if cache.retcode == ReturnCode.InitialFailure
+    success = cache.retcode != ReturnCode.InitialFailure
+    if ReactantCore.within_compile() && !(success isa Bool)
+        u, resid, retcode = _initialized_result(cache.prob, success) do
+            _solve_noinit(cache)
+        end
+        return build_nonlinear_solution(cache.prob, cache.alg, u, resid; retcode)
+    elseif !success
         u = SII.state_values(cache)
         return build_nonlinear_solution(
             cache.prob, cache.alg, u, Utils.evaluate_f(cache.prob, u); cache.retcode
         )
     end
+    return _solve_noinit(cache)
+end
+
+function _solve_noinit(cache)
     # The initialization pipeline already ran during `init`; the inner solve must
     # not run it a second time.
     return CommonSolve.solve(

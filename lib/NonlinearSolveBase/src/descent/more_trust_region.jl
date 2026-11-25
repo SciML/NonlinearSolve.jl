@@ -1382,7 +1382,8 @@ end
 
 function _more_augmented_qrhs!(qrhs, Dp, λ, m)
     fill!(@view(qrhs[1:m]), zero(eltype(qrhs)))
-    @views @. qrhs[(m + 1):end] = Dp / sqrt(λ)
+    sqrtλ = sqrt(λ)
+    @views qrhs[(m + 1):end] .= Dp ./ sqrtλ
     return qrhs
 end
 

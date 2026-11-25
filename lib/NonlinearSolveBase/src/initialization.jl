@@ -30,11 +30,19 @@ function _run_initialization!(
         abstol = get_abstol(cache), reltol = get_reltol(cache)
     )
     cache = update_initial_values!(cache, u0, p)
-    if cache isa AbstractNonlinearSolveCache && isdefined(cache, :retcode) && !success
-        cache.retcode = ReturnCode.InitialFailure
+    if cache isa AbstractNonlinearSolveCache && isdefined(cache, :retcode)
+        cache.retcode = ifelse(success, cache.retcode, ReturnCode.InitialFailure)
     end
 
     return cache, success
+end
+
+function _initialization_retcode(prob, initializealg)
+    if ReactantCore.within_compile() && !(initializealg isa SciMLBase.NoInit) &&
+            SciMLBase.has_initialization_data(prob.f)
+        return maybe_traced(ReturnCode.Default)
+    end
+    return ReturnCode.Default
 end
 
 function get_abstol(prob::AbstractNonlinearProblem)

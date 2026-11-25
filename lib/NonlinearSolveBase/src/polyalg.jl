@@ -98,8 +98,8 @@ end
     caches <: Tuple
     alg <: NonlinearSolvePolyAlgorithm
 
-    best::Int
-    current::Int
+    best
+    current
     nsteps::Int
 
     # Best-subalgorithm retention (see the algorithm docstring): `retain_best` arms it
@@ -119,7 +119,7 @@ end
     total_time::Float64
     maxtime
 
-    retcode::ReturnCode.T
+    retcode
     force_stop::Bool
 
     maxiters::Int
@@ -160,10 +160,21 @@ function NonlinearSolveBase.get_reltol(cache::NonlinearSolvePolyAlgorithmCache)
     return NonlinearSolveBase.get_reltol(cache.caches[cache.current])
 end
 function NonlinearSolveBase.get_u(cache::NonlinearSolvePolyAlgorithmCache)
-    return NonlinearSolveBase.get_u(cache.caches[cache.current])
+    return _poly_current_value(get_u, cache)
 end
 function NonlinearSolveBase.get_fu(cache::NonlinearSolvePolyAlgorithmCache)
-    return NonlinearSolveBase.get_fu(cache.caches[cache.current])
+    return _poly_current_value(get_fu, cache)
+end
+
+function _poly_current_value(f, cache)
+    if cache.current isa Int
+        return f(cache.caches[cache.current])
+    end
+    value = f(first(cache.caches))
+    for i in 2:length(cache.caches)
+        value = select(cache.current == i, f(cache.caches[i]), value)
+    end
+    return value
 end
 
 function SII.symbolic_container(cache::NonlinearSolvePolyAlgorithmCache)
@@ -302,11 +313,14 @@ function SciMLBase.__init(
     end
 
     # Native child caches evaluate the residual and validate bounds during construction.
-    initialize_before_cache = has_box_bounds(prob) && SciMLBase.allowsbounds(alg)
+    initialize_before_cache = (has_box_bounds(prob) && SciMLBase.allowsbounds(alg)) ||
+        (ReactantCore.within_compile() && SciMLBase.has_initialization_data(prob.f))
     success = true
     if initialize_before_cache
         prob, success = run_initialization!(prob, initializealg, prob)
     end
+    initial_code = ifelse(success, ReturnCode.Default, ReturnCode.InitialFailure)
+    traced_init = !(success isa Bool)
 
     u0 = prob.u0
     u0_aliased = alias_u0 ? copy(u0) : u0
@@ -325,16 +339,14 @@ function SciMLBase.__init(
                 initializealg = SciMLBase.NoInit(), kwargs...
             )
         end,
-        alg, -1, alg.start_index, 0, false, alg.start_index, false, 0, u0, prob.p,
+        alg, traced_init ? maybe_traced(-1) : -1,
+        traced_init ? maybe_traced(alg.start_index) : alg.start_index,
+        0, false, alg.start_index, false, 0, u0, prob.p,
         stats, 0.0, maxtime,
-        ReturnCode.Default, false, maxiters, internalnorm,
+        initial_code, false, maxiters, internalnorm,
         u0, u0_aliased, alias_u0, initializealg, verbose
     )
-    if initialize_before_cache
-        success || (cache.retcode = ReturnCode.InitialFailure)
-    else
-        run_initialization!(cache)
-    end
+    initialize_before_cache || run_initialization!(cache)
     return cache
 end
 

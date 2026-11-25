@@ -119,9 +119,9 @@ residual fails the convergence test and iteration continues.
 
 Compiled first-order solves require an inactive Jacobian reuse policy. For problems where
 the automatic policy enables reuse, set `jacobian_reuse = false` to request a fresh
-Jacobian at each step. Dense matrix solves use a device-side singular value decomposition with the
-default linear solver. Run solves with a custom matrix solver or linear-solver options
-outside Reactant compilation. Whole-solve compilation does not support the box-bounds transformation.
+Jacobian at each step. The default dense solver uses device-side pivoted LU for square Jacobians. It uses a
+singular value decomposition for singular or rectangular Jacobians. Run solves with a custom
+matrix solver or linear-solver options outside Reactant compilation. Whole-solve compilation does not support the box-bounds transformation.
 
 Quasi-Newton Jacobian reset rules and `max_resets` are evaluated under compile. The compiled
 solver updates the `dfu` baseline after a du-stall reset and evaluates reset rules while
@@ -132,6 +132,9 @@ step rather than recursively inside the same step.
 the traced non-monotone search provided by LineSearch.jl. Broyden configured with
 an explicit AD line search (for example `BackTracking(autodiff = AutoForwardDiff())`) also
 fails loudly under compile, because dual numbers cannot wrap traced values.
+
+When a polyalgorithm uses a data-dependent auxiliary initializer, use the default
+`store_original=Val(false)`. Initialization failure returns the mapped state and its residual.
 
 The returned solution is an ordinary `NonlinearSolution`. `u` and `resid` are device
 arrays, and `retcode` is a `Reactant.ConcreteEnum{ReturnCode.T}` that can be
