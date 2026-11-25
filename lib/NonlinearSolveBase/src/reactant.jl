@@ -40,11 +40,18 @@ end
 
 function _has_traced_leaf(x, scalar, seen)
     x isa scalar && return true
-    x isa DenseArray && return eltype(x) <: scalar
+    x isa DenseArray && !(x isa Array) && return eltype(x) <: scalar
     (isbits(x) || x isa Union{Type, Module, AbstractString, Symbol}) && return false
     if ismutable(x)
         haskey(seen, x) && return false
         seen[x] = nothing
+    end
+    if x isa Array
+        isbitstype(eltype(x)) && return false
+        for i in eachindex(x)
+            isassigned(x, i) && _has_traced_leaf(x[i], scalar, seen) && return true
+        end
+        return false
     end
     T = typeof(x)
     return any(fieldnames(T)) do name
@@ -53,6 +60,15 @@ function _has_traced_leaf(x, scalar, seen)
 end
 
 function _plan_const_copies!(rebuild, x, scalar, protect)
+    if x isa Array
+        isbitstype(eltype(x)) && return
+        haskey(rebuild, x) && (!protect || rebuild[x]) && return
+        rebuild[x] = protect
+        for i in eachindex(x)
+            isassigned(x, i) && _plan_const_copies!(rebuild, x[i], scalar, protect)
+        end
+        return
+    end
     (
         x isa scalar || x isa DenseArray || isbits(x) ||
             x isa Union{Type, Module, AbstractString, Symbol}
@@ -77,15 +93,19 @@ end
 
 function _dealias_traced!(x, scalar, visited, rebuild)
     x isa scalar && return oftype(x, x + zero(x))
-    if x isa DenseArray
-        eltype(x) <: scalar || return x
-        if x isa Array
-            result = copy(x)
-            for i in eachindex(x)
-                isassigned(x, i) && (result[i] = _dealias_traced!(x[i], scalar, visited, rebuild))
-            end
-            return result
+    if x isa Array
+        isbitstype(eltype(x)) && return x
+        haskey(visited, x) && return visited[x]::typeof(x)
+        _has_traced_leaf(x, scalar, IdDict()) || return x
+        result = copy(x)
+        visited[x] = result
+        for i in eachindex(x)
+            isassigned(x, i) && (result[i] = _dealias_traced!(x[i], scalar, visited, rebuild))
         end
+        delete!(visited, x)
+        return result
+    elseif x isa DenseArray
+        eltype(x) <: scalar || return x
         return oftype(x, x .+ zero(eltype(x)))
     end
     (isbits(x) || x isa Union{Type, Module, AbstractString, Symbol}) && return x

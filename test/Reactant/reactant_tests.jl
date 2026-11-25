@@ -600,3 +600,15 @@ include("polyalgorithm_tests.jl")
 include("diagonal_tests.jl")
 include("termination_tests.jl")
 include("simple_tests.jl")
+
+@testset "Dealiasing a Julia buffer of traced arrays" begin
+    function update_first(u)
+        values = NonlinearSolveBase.dealias_traced!([u, u])
+        values[1] .+= 1
+        return values[1], values[2]
+    end
+    u = Float32[-0.0, 1]
+    first, second = Reactant.@jit update_first(Reactant.to_rarray(u))
+    @test Array(first) == u .+ 1
+    @test Array(second) == u
+end

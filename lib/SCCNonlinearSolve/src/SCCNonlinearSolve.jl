@@ -162,6 +162,25 @@ function sols_buffer_eltype(explicitfuns, T, uType, rType)
     return extracted === nothing ? default : extracted
 end
 
+struct SCCHistory{S, V <: AbstractVector{S}} <: AbstractVector{S}
+    completed::V
+end
+
+Base.size(h::SCCHistory) = size(h.completed)
+Base.getindex(h::SCCHistory, i::Int) = h.completed[i]
+Base.setindex!(h::SCCHistory, value, i::Int) = setindex!(h.completed, value, i)
+
+function Base.convert(::Type{V}, h::SCCHistory) where {S, V <: SubArray{S, 1}}
+    h.completed isa V && return h.completed
+    return view(Vector{S}(h.completed), 1:length(h))::V
+end
+
+function callback_history(f, p, completed)
+    _explicitfun_sols_eltype(typeof(f)) === eltype(completed) && return completed
+    history = SCCHistory(completed)
+    return applicable(f, SciMLBase.unwrap_parameters(p), history) ? history : completed
+end
+
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
     # Compute the stripped solution type deterministically from the first problem.
     # After strip_solution, all NonlinearSolutions have a predictable concrete type
@@ -174,7 +193,9 @@ function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::Abstra
     ST = sols_buffer_eltype(explicitfuns, T, uType, rType)
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
-        sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST
+        f = explicitfuns[i]
+        history = callback_history(f, probs[i].p, view(sols, 1:(i - 1)))
+        sols[i] = solve_single_scc(alg, probs[i], f, history; kwargs...)::ST
     end
     return sols
 end

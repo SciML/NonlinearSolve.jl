@@ -63,29 +63,34 @@ function SciMLBase.__solve(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
+    solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, x, prob)
+    if !compiling && (solved || maxiters ≤ 0)
+        return Utils.simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved)
+    end
+
     @bb xo = similar(x)
     fx_cache = Utils.should_cache_fx(prob, prob.f) ?
         NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
 
-    retcode, iterations, x, fx, xo, J = Utils.init_loop_state(ReturnCode.Default, x, fx, xo, J)
-    fx_sol, x_sol = Utils.fresh(fx), Utils.fresh(x)
+    retcode, iterations, x, fx, xo, J = Utils.init_loop_state(retcode, x, fx, xo, J)
+    fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
 
     ReactantCore.@trace track_numbers = false while (!solved) & (iterations < maxiters)
         @bb copyto!(xo, x)
         xo = Utils.fresh(xo)
         δx = NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
         @bb x .-= δx
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
 
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
         fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
 
-        if compiling || !solved
-            fx = NLBUtils.evaluate_f!!(prob, fx, x)
+        iterations += 1
+        ReactantCore.@trace track_numbers = false if !solved & (iterations < maxiters)
             J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
         end
-        iterations += 1
     end
 
     return Utils.simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved)

@@ -100,3 +100,30 @@ end
     solve(prob, SimpleBroyden())
     @test (@allocated solve(prob, SimpleBroyden())) < length(prob.u0) * sizeof(prob.u0)
 end
+
+@testset "Simple Newton checks convergence before refreshing the Jacobian" begin
+    f(x, p) = 0.01f0 * (x^2 - 1)
+    for (problem, alg) in (
+            (NonlinearProblem, SimpleNewtonRaphson()),
+            (NonlinearLeastSquaresProblem, SimpleGaussNewton()),
+        )
+        for (initial, expected, calls, budget, code) in (
+                (0.01f0, 0.01f0, 0, 1, ReturnCode.Success),
+                (2.0f0, 1.25f0, 1, 2, ReturnCode.Success),
+                (0.1f0, 0.1f0, 0, 0, ReturnCode.Success),
+                (4.0f0, 2.125f0, 1, 1, ReturnCode.MaxIters),
+            )
+            evaluations = Ref(0)
+            function jac(x, p)
+                evaluations[] += 1
+                return 0.02f0 * x
+            end
+            prob = problem(NonlinearFunction{false}(f; jac), initial)
+            sol = solve(prob, alg; abstol = 0.01f0, maxiters = budget)
+            @test sol.retcode == code
+            @test sol.u ≈ expected
+            @test sol.resid ≈ f(sol.u, nothing)
+            @test evaluations[] == calls
+        end
+    end
+end

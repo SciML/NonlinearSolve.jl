@@ -2,7 +2,6 @@ using SCCNonlinearSolve
 include("setup_corerootfindtesting.jl")
 
 using NonlinearSolveFirstOrder
-using SCCNonlinearSolve
 using FunctionWrappers: FunctionWrapper
 using ADTypes: AutoFiniteDiff
 
@@ -52,31 +51,30 @@ function explicitfun2_raw(p, sols)
     return nothing
 end
 
-# Wrap explicitfuns with FunctionWrapper for type unification.
-# Derive the concrete stripped element type from public solve + strip_solution
-# so the SubArray signature matches the sols buffer under either SciMLBase layout.
 _probe_sol = solve(prob1, NewtonRaphson(; autodiff = AutoFiniteDiff()))
-SSol = typeof(
+ConcreteSol = typeof(
     SciMLBase.strip_solution(
         SciMLBase.build_solution(
             prob1, nothing, _probe_sol.u, _probe_sol.resid; _probe_sol.retcode
         )
     )
 )
-SolsView = SubArray{SSol, 1, Vector{SSol}, Tuple{UnitRange{Int64}}, true}
-EFW = FunctionWrapper{Nothing, Tuple{Vector{Float64}, SolsView}}
-ef1_wrapped = EFW(explicitfun1_raw)
-ef2_wrapped = EFW(explicitfun2_raw)
 
-# Verify both FunctionWrapper types are identical -- the whole point of wrapping
-@test typeof(ef1_wrapped) === typeof(ef2_wrapped)
+uType = Vector{Float64}
+PartialSol = SciMLBase.NonlinearSolution{
+    Float64, 1, uType, uType,
+    NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
+}
 
-# Pass wrapped explicitfuns directly as a Vector (no Void{Any} wrapping)
-explicitfuns = [ef1_wrapped, ef2_wrapped]
-
-# Create SCCNonlinearProblem with Vector inputs
-sccprob = SciMLBase.SCCNonlinearProblem(probs, explicitfuns)
-@test sccprob.probs isa AbstractVector
+function wrapped_transfer(f, ::Type{S}) where {S}
+    V = SubArray{S, 1, Vector{S}, Tuple{UnitRange{Int}}, true}
+    return FunctionWrapper{Nothing, Tuple{Vector{Float64}, V}}(
+        (p, sols) -> begin
+            @test eltype(sols) === S
+            return f(p, sols)
+        end
+    )
+end
 
 # Use AutoFiniteDiff since FunctionWrapper enforces strict Float64 signatures
 # and cannot accept ForwardDiff.Dual arguments
@@ -84,32 +82,11 @@ scc_alg = SCCNonlinearSolve.SCCAlg(
     nlalg = NewtonRaphson(; autodiff = AutoFiniteDiff()), linalg = nothing
 )
 
-# First solve
-scc_sol = solve(sccprob, scc_alg)
-@test SciMLBase.successful_retcode(scc_sol)
-
-# Default: original is nothing (store_original = Val(false))
-@test scc_sol.original === nothing
-
-# With store_original = Val(true): original contains sub-solutions
 scc_alg_debug = SCCNonlinearSolve.SCCAlg(
     nlalg = NewtonRaphson(; autodiff = AutoFiniteDiff()),
     linalg = nothing,
     store_original = Val(true),
 )
-scc_sol_debug = solve(sccprob, scc_alg_debug)
-@test SciMLBase.successful_retcode(scc_sol_debug)
-@test scc_sol_debug.original !== nothing
-@test eltype(scc_sol_debug.original) !== Any
-@test isconcretetype(eltype(scc_sol_debug.original))
-
-# Verify correctness against a reference full-system solve.
-# The coupled system is:
-#   du[1] = cos(u[2]) - u[1]
-#   du[2] = sin(u[1] + u[2]) + u[2]
-#   du[3] = 2u[4] + u[3] + u[1]   (p[1] = u[1] from component 1)
-#   du[4] = u[5]^2 + u[4]
-#   du[5] = u[3]^2 + u[5]
 function f_full(du, u, p)
     du[1] = cos(u[2]) - u[1]
     du[2] = sin(u[1] + u[2]) + u[2]
@@ -120,10 +97,52 @@ function f_full(du, u, p)
 end
 ref_prob = NonlinearProblem(f_full, zeros(5))
 ref_sol = solve(ref_prob, NewtonRaphson())
-@test scc_sol.u ≈ ref_sol.u atol = 1.0e-10
 
-# Second solve should not trigger recompilation (compile_time requires Julia 1.11+)
-if VERSION >= v"1.11"
-    stats = @timed solve(sccprob, scc_alg)
-    @test stats.compile_time == 0.0
+decorate(f) = (p, sols) -> f(p, sols)
+
+@testset "Solution history with $S" for S in (ConcreteSol, PartialSol)
+    direct = [wrapped_transfer(f, S) for f in (explicitfun1_raw, explicitfun2_raw)]
+    @test typeof(direct[1]) === typeof(direct[2])
+    adapted = map(decorate, direct)
+    @testset "$label" for (label, callbacks, stored) in (
+            ("direct", direct, S), ("decorated", adapted, PartialSol),
+            ("plain and direct", Any[explicitfun1_raw, direct[2]], S),
+            ("plain and decorated", Any[explicitfun1_raw, adapted[2]], PartialSol),
+            ("mixed decorated", Any[wrapped_transfer(explicitfun1_raw, PartialSol), adapted[2]], PartialSol),
+            ("mixed direct", Any[wrapped_transfer(explicitfun1_raw, ConcreteSol), direct[2]], ConcreteSol),
+        )
+        sccprob = SciMLBase.SCCNonlinearProblem(probs, callbacks)
+        @test sccprob.probs isa AbstractVector
+        scc_sol = solve(sccprob, scc_alg)
+        @test SciMLBase.successful_retcode(scc_sol)
+        @test scc_sol.u ≈ ref_sol.u atol = 1.0e-10
+        @test scc_sol.original === nothing
+        scc_sol_debug = solve(sccprob, scc_alg_debug)
+        @test SciMLBase.successful_retcode(scc_sol_debug)
+        @test scc_sol_debug.u ≈ ref_sol.u atol = 1.0e-10
+        @test eltype(scc_sol_debug.original) === stored
+        if callbacks === direct
+            if S === ConcreteSol
+                @test isconcretetype(eltype(scc_sol_debug.original))
+            end
+            if VERSION >= v"1.11"
+                stats = @timed solve(sccprob, scc_alg)
+                @test stats.compile_time == 0.0
+            end
+        end
+    end
+end
+
+@testset "Decorated callback with despecialized parameters" begin
+    blocks = map(probs) do prob
+        f = NonlinearFunction{true, SciMLBase.AutoDespecialize}(prob.f.f)
+        return NonlinearProblem(f, prob.u0, prob.p)
+    end
+    callbacks = map((explicitfun1_raw, explicitfun2_raw)) do transfer
+        wrapped = wrapped_transfer(transfer, ConcreteSol)
+        return (p::Vector{Float64}, history) -> wrapped(p, history)
+    end
+    sol = solve(SciMLBase.SCCNonlinearProblem(blocks, collect(callbacks)), scc_alg)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ ref_sol.u atol = 1.0e-10
 end

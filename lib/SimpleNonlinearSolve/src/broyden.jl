@@ -96,20 +96,22 @@ function SciMLBase.__solve(
         solved, retcode, fx, x = Utils.check_termination(tc_cache, fx, x, xo, prob)
         fx, x = Utils.fresh(fx), Utils.fresh(x)
 
-        @bb J⁻¹δf = J⁻¹ × vec(δf)
-        d = dot(δx, J⁻¹δf)
-        @bb xᵀJ⁻¹ = transpose(J⁻¹) × vec(δx)
+        ReactantCore.@trace track_numbers = false if !solved
+            @bb J⁻¹δf = J⁻¹ × vec(δf)
+            d = dot(δx, J⁻¹δf)
+            @bb xᵀJ⁻¹ = transpose(J⁻¹) × vec(δx)
 
-        @bb @. δJ⁻¹n = (δx - J⁻¹δf) / d
+            @bb @. δJ⁻¹n = (δx - J⁻¹δf) / d
 
-        δJ⁻¹n_ = NLBUtils.safe_vec(δJ⁻¹n)
-        xᵀJ⁻¹_ = NLBUtils.safe_vec(xᵀJ⁻¹)
-        @bb δJ⁻¹ = δJ⁻¹n_ × transpose(xᵀJ⁻¹_)
-        @bb J⁻¹ .+= δJ⁻¹
+            δJ⁻¹n_ = NLBUtils.safe_vec(δJ⁻¹n)
+            xᵀJ⁻¹_ = NLBUtils.safe_vec(xᵀJ⁻¹)
+            @bb δJ⁻¹ = δJ⁻¹n_ × transpose(xᵀJ⁻¹_)
+            @bb J⁻¹ .+= δJ⁻¹
 
-        @bb copyto!(xo, x)
-        @bb copyto!(fprev, fx)
-        xo, fprev = Utils.fresh(xo), Utils.fresh(fprev)
+            @bb copyto!(xo, x)
+            @bb copyto!(fprev, fx)
+            xo, fprev = Utils.fresh(xo), Utils.fresh(fprev)
+        end
         iterations += 1
     end
 

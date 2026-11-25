@@ -74,3 +74,26 @@ end
     @test all(isnan, host.resid)
     @test all(isnan, Array(sol.resid))
 end
+
+@testset "Simple Newton residual at the accepted iterate" begin
+    f(x, p) = 0.01f0 * (x^2 - 1)
+    jac(x, p) = 0.02f0 * x
+    x0 = 0.01f0
+    for (problem, alg) in (
+            (NonlinearProblem, SimpleNewtonRaphson()),
+            (NonlinearLeastSquaresProblem, SimpleGaussNewton()),
+        )
+        scaled(x, tol) = solve(problem(NonlinearFunction(f; jac), x), alg; abstol = tol)
+        for tol in (0.01f0, 1.0f-5)
+            for sol in (scaled(x0, tol), Reactant.@jit(scaled(Reactant.ConcreteRNumber(x0), tol)))
+                x = Float32(sol.u)
+                @test sol.retcode == ReturnCode.Success
+                @test Float32(sol.resid) ≈ f(x, nothing) atol = eps(Float32)
+                @test abs(f(x, nothing)) ≤ tol
+                if tol == 0.01f0
+                    @test x == x0
+                end
+            end
+        end
+    end
+end

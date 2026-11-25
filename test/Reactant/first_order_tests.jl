@@ -45,18 +45,18 @@ end
         return cache.u, cache.fu, cache.nsteps
     end
     for (limit, iterate, residual) in ((1, 1.5f0, 0.25f0), (0, 1.0f0, -1.0f0))
-        u = Float32[1]
+        u = ones(Float32, 2)
         results = (step_newton(u, Val(limit)), Reactant.@jit(step_newton(Reactant.to_rarray(u), Val(limit))))
         for (x, fx, nsteps) in results
-            @test Array(x) == [iterate]
-            @test Array(fx) == [residual]
+            @test Array(x) == fill(iterate, 2)
+            @test Array(fx) == fill(residual, 2)
             @test Int(nsteps) == limit
         end
     end
 end
 
 @testset "Failed initialization preserves the cache state" begin
-    f(u, p) = u .- 2
+    f(u, p) = u .- 1
     function jac(u, evaluations)
         evaluations .+= 1
         return Diagonal(one.(u))
@@ -74,14 +74,14 @@ end
             (NewtonRaphson(), 0), (NonlinearSolvePolyAlgorithm((NewtonRaphson(),)), 0),
             (SimpleNewtonRaphson(), nothing),
         )
-        u = Float32[3]
+        u = Float32[2, 2]
         results = (failed_init(u, alg), Reactant.@jit(failed_init(Reactant.to_rarray(u), alg)))
         for (x, fx, retcode, nsteps, evaluations) in results
-            @test Array(x) == Float32[3]
-            @test Array(fx) == Float32[1]
+            @test Array(x) == Float32[2, 2]
+            @test Array(fx) == Float32[1, 1]
             @test retcode == ReturnCode.InitialFailure
             @test (isnothing(nsteps) ? nothing : Int(nsteps)) === expected_steps
-            @test Array(evaluations) == Float32[0]
+            @test Array(evaluations) == Float32[0, 0]
         end
     end
 end

@@ -45,16 +45,20 @@ function SciMLBase.__solve(
     )
 end
 
+endpoint_residual(u, p) = u .* (u .- 1)
+shifted_residual(u, p) = u .- 1
+
 @testset "Aliased polyalgorithm candidates: $first_code, $second_code" for (
-        first_code, second_code, first_u, second_u, expected_u, expected_code,
+        f, u0, first_code, second_code, first_u, second_u, expected_u, expected_code,
     ) in (
-        (ReturnCode.Success, ReturnCode.Success, 0, 1, 0, ReturnCode.Success),
-        (ReturnCode.MaxIters, ReturnCode.MaxIters, 2, 4, 2, ReturnCode.MaxIters),
-        (ReturnCode.ExactSolutionLeft, ReturnCode.Success, 0, 1, 0, ReturnCode.ExactSolutionLeft),
-        (ReturnCode.ExactSolutionRight, ReturnCode.Success, 0, 1, 0, ReturnCode.ExactSolutionRight),
-        (ReturnCode.StalledSuccess, ReturnCode.Success, 0, 1, 1, ReturnCode.Success),
+        (endpoint_residual, Float32[3], ReturnCode.Success, ReturnCode.Success, 0, 1, 0, ReturnCode.Success),
+        (endpoint_residual, Float32[3], ReturnCode.MaxIters, ReturnCode.MaxIters, 2, 4, 2, ReturnCode.MaxIters),
+        (endpoint_residual, Float32[3], ReturnCode.ExactSolutionLeft, ReturnCode.Success, 0, 1, 0, ReturnCode.ExactSolutionLeft),
+        (endpoint_residual, Float32[3], ReturnCode.ExactSolutionRight, ReturnCode.Success, 0, 1, 0, ReturnCode.ExactSolutionRight),
+        (endpoint_residual, Float32[3], ReturnCode.StalledSuccess, ReturnCode.Success, 0, 1, 1, ReturnCode.Success),
+        (shifted_residual, Float32[2, 2], ReturnCode.Success, ReturnCode.Success, 1, 3, 1, ReturnCode.Success),
+        (shifted_residual, Float32[2, 2], ReturnCode.MaxIters, ReturnCode.MaxIters, 1, 3, 1, ReturnCode.MaxIters),
     )
-    f(u, p) = u .* (u .- 1)
     alg = NonlinearSolvePolyAlgorithm(
         (
             AliasingCandidate(first_u, first_code), AliasingCandidate(second_u, second_code),
@@ -63,13 +67,13 @@ end
     run_candidates(u) = solve(
         NonlinearProblem(f, u), alg; alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = true)
     )
-    u = Float32[3]
+    u = copy(u0)
     ru = Reactant.to_rarray(copy(u))
     host = run_candidates(u)
     compiled = Reactant.@jit run_candidates(ru)
     for (sol, input) in ((host, u), (compiled, ru))
-        @test Array(sol.u) == Float32[expected_u]
-        @test Array(input) == Float32[expected_u]
+        @test Array(sol.u) == fill(Float32(expected_u), size(u0))
+        @test Array(input) == fill(Float32(expected_u), size(u0))
         @test Array(sol.resid) == f(Array(sol.u), nothing)
         @test sol.retcode == expected_code
     end

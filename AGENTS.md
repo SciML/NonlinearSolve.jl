@@ -9,8 +9,8 @@
 
 - Every sublibrary under `lib/` has its own project and test groups. Run
   `GROUP=Core julia --project=lib/<Sublib> -e 'using Pkg; Pkg.test()'` and `GROUP=QA` for
-  each sublibrary whose sources you changed; the root `Pkg.test()` resolves the *released*
-  sublibraries and does not test local `lib/` changes.
+  each changed sublibrary so its own test groups execute. Check the resolved source paths
+  when validating local sublibrary changes.
 - Sublibrary `[sources]` entries are relative paths (`../NonlinearSolveBase`). Pkg resolves
   them against the *active* project, so scratch environments used to test a sublibrary
   must live under `lib/` (a sibling directory), never under `/tmp` or `~/tmp`.
