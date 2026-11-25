@@ -51,17 +51,23 @@ specified using ADTypes.jl.
 HomotopyContinuation.jl requires the taylor series of the polynomial system for the single
 root method. This is automatically computed using TaylorSeries.jl.
 """
-@concrete struct HomotopyContinuationJL{AllRoots, ComplexRoots} <:
+struct HomotopyContinuationJL{AllRoots, ComplexRoots, AD, K} <:
     NonlinearSolveBase.AbstractNonlinearSolveAlgorithm
-    autodiff
-    kwargs
+    autodiff::AD
+    kwargs::K
+
+    function HomotopyContinuationJL{AllRoots, ComplexRoots}(
+            autodiff::AD, kwargs::K
+        ) where {AllRoots, ComplexRoots, AD, K}
+        ComplexRoots === Val{true} || ComplexRoots === Val{false} ||
+            throw(ArgumentError("ComplexRoots must be `Val{true}` or `Val{false}`, got `$(ComplexRoots)`"))
+        return new{AllRoots, ComplexRoots, AD, K}(autodiff, kwargs)
+    end
 end
 
 function HomotopyContinuationJL{AllRoots, ComplexRoots}(;
         autodiff = true, kwargs...
     ) where {AllRoots, ComplexRoots}
-    ComplexRoots === Val{true} || ComplexRoots === Val{false} ||
-        throw(ArgumentError("ComplexRoots must be `Val{true}` or `Val{false}`, got `$(ComplexRoots)`"))
     if autodiff isa Bool
         autodiff = autodiff ? AutoForwardDiff() : AutoFiniteDiff()
     end

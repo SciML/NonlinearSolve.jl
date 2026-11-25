@@ -62,12 +62,9 @@ end
 
 function homotopy_evaluate_f(prob::NonlinearProblem, u, ::Type{Val{true}})
     SciMLBase.isinplace(prob) || return NonlinearSolveBase.Utils.evaluate_f(prob, u)
-    proto = prob.f.resid_prototype
-    fu = if proto === nothing
-        similar(u, complex(eltype(u)))
-    else
-        similar(proto, promote_type(eltype(u), Complex{real(eltype(proto))}))
-    end
+    proto = something(prob.f.resid_prototype, u)
+    # ComplexF64 is the working type of the HomotopyContinuation.jl tracker
+    fu = similar(proto, promote_type(eltype(u), eltype(proto), ComplexF64))
     prob.f(fu, u, prob.p)
     return fu
 end
@@ -87,16 +84,18 @@ function CommonSolve.solve(
     realsols = HC.results(orig_sol; only_real = only_real_roots)
     if isempty(realsols)
         retcode = SciMLBase.ReturnCode.ConvergenceFailure
-        resid = NonlinearSolveBase.Utils.evaluate_f(prob, u0)
+        resid = homotopy_evaluate_f(prob, u0, ComplexRoots)
         nlsol = SciMLBase.build_solution(prob, alg, u0, resid; retcode, original = orig_sol)
         return SciMLBase.EnsembleSolution([nlsol], 0.0, false, nothing)
     end
-    T = if ComplexRoots === Val{false}
-        eltype(u0)
+    # complex roots keep the type returned by `unpolynomialize`
+    validsols = if ComplexRoots === Val{true}
+        Any[]
+    elseif isscalar
+        eltype(u0)[]
     else
-        promote_type(eltype(u0), eltype(first(realsols).solution))
+        Vector{eltype(u0)}[]
     end
-    validsols = isscalar ? T[] : Vector{T}[]
     for result in realsols
         # ignore ones which make the denominator zero
         test_u = ComplexRoots === Val{false} ? real.(result.solution) : result.solution
@@ -117,7 +116,7 @@ function CommonSolve.solve(
     # if there are no valid solutions
     if isempty(validsols)
         retcode = SciMLBase.ReturnCode.Infeasible
-        resid = NonlinearSolveBase.Utils.evaluate_f(prob, u0)
+        resid = homotopy_evaluate_f(prob, u0, ComplexRoots)
         nlsol = SciMLBase.build_solution(prob, alg, u0, resid; retcode, original = orig_sol)
         return SciMLBase.EnsembleSolution([nlsol], 0.0, false, nothing)
     end
@@ -166,7 +165,7 @@ function CommonSolve.solve(
         else
             SciMLBase.ReturnCode.Infeasible
         end
-        resid = NonlinearSolveBase.Utils.evaluate_f(prob, u0)
+        resid = homotopy_evaluate_f(prob, u0, ComplexRoots)
         return SciMLBase.build_solution(prob, alg, u0, resid; retcode, original = orig_sol)
     end
 
@@ -181,7 +180,7 @@ function CommonSolve.solve(
 
     if any(isnan, u)
         retcode = SciMLBase.ReturnCode.Infeasible
-        resid = NonlinearSolveBase.Utils.evaluate_f(prob, u0)
+        resid = homotopy_evaluate_f(prob, u0, ComplexRoots)
         return SciMLBase.build_solution(prob, alg, u0, resid; retcode, original = orig_sol)
     end
 

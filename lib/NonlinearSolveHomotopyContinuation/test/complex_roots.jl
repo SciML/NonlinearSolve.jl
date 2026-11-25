@@ -72,9 +72,8 @@ end
         return u * u + 1
     end
 
-    # H(x, t) = F(x) - t*F(u0) is singular at u = 0, which lies on the tracked
-    # path at t = 1/(u0^2 + 1) whenever F(u0) is real. Every real start satisfies
-    # that, so a start with non-real F(u0) is needed to keep the path regular.
+    # A real start puts the singularity at u = 0, t = 1/(u0^2 + 1) inside the
+    # tracked interval. The chosen complex start makes the singular time non-real.
     prob = NonlinearProblem(rhs, 0.5 + 0.9im)
 
     alg_complex = HomotopyContinuationJL{false, Val{true}}(; threading = false)
@@ -158,12 +157,79 @@ end
     @test abs(sol.resid[1]) < 1.0e-10
 end
 
-@testset "Complex roots - flag validation" begin
-    for C in (false, Val(false), Val(true), Nothing)
-        @test_throws ArgumentError HomotopyContinuationJL{true, C}(; threading = false)
+@testset "Complex roots - inplace residuals at the start" begin
+    linear_f = function (r, u, p)
+        r[1] = 2u[1] - 0.5im
+        return nothing
     end
-    @test HomotopyContinuationJL{true, Val{true}}(; threading = false) isa
-        HomotopyContinuationJL{true, Val{true}}
-    @test HomotopyContinuationJL{true, Val{false}}(; threading = false) isa
-        HomotopyContinuationJL{true, Val{false}}
+    single = HomotopyContinuationJL{false, Val{true}}(; threading = false, seed = 0x12345678)
+    allroots = HomotopyContinuationJL{true, Val{true}}(; threading = false, seed = 0x12345678)
+
+    sol = solve(NonlinearProblem(NonlinearFunction(linear_f), [1]), single)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ [0.25im] atol = 1.0e-10
+
+    nlfn = NonlinearFunction(linear_f; resid_prototype = zeros(1))
+    rejecting = (
+        HomotopyNonlinearFunction(nlfn; denominator = (u, p) -> [u[1] - 0.25im]),
+        HomotopyNonlinearFunction(nlfn; unpolynomialize = (u, p) -> ([NaN * im],)),
+    )
+    for fn in rejecting
+        prob = NonlinearProblem(fn, [0.5])
+        for sol in (solve(prob, single), only(solve(prob, allroots).u))
+            @test sol.retcode == SciMLBase.ReturnCode.Infeasible
+            @test sol.resid == [1 - 0.5im]
+        end
+    end
+
+    # u[1] = 0 contradicts u[1] * u[2] = im, so there are no roots to track to
+    rootless_f = function (r, u, p)
+        r[1] = u[1] * u[2] - im
+        r[2] = u[1]
+        return nothing
+    end
+    prob = NonlinearProblem(
+        NonlinearFunction(rootless_f; resid_prototype = zeros(2)), [0.0, 0.0]
+    )
+    sol = only(solve(prob, allroots).u)
+    @test sol.retcode == SciMLBase.ReturnCode.ConvergenceFailure
+    @test sol.resid == [-im, 0]
+end
+
+@testset "Complex roots - callback precision" begin
+    # BigFloat Newton steps refine each tracked root past Float64 precision
+    unpolynomialize = function (u, p)
+        z = Complex{BigFloat}(u)
+        for _ in 1:2
+            z -= (z^2 + p) / 2z
+        end
+        return (z,)
+    end
+    fn = HomotopyNonlinearFunction((u, p) -> u^2 + p; unpolynomialize)
+    sol = solve(
+        NonlinearProblem(fn, 1.0, 2.0),
+        HomotopyContinuationJL{true, Val{true}}(; threading = false, seed = 0x12345678)
+    )
+    @test sol.converged
+    @test length(sol.u) == 2
+    @test sort([sign(imag(s.u)) for s in sol.u]) == [-1, 1]
+    for s in sol.u
+        @test s.u isa Complex{BigFloat}
+        @test abs(s.u^2 + 2) < big(2.0)^-100
+        @test abs(s.resid) < big(2.0)^-100
+    end
+end
+
+@testset "Complex roots - flag validation" begin
+    kwargs = (; threading = false)
+    for C in (false, Val(false), Val(true), Nothing)
+        @test_throws ArgumentError HomotopyContinuationJL{true, C}(; kwargs...)
+        @test_throws ArgumentError HomotopyContinuationJL{true, C}(AutoForwardDiff(), kwargs)
+    end
+    for C in (Val{true}, Val{false})
+        @test HomotopyContinuationJL{true, C}(; kwargs...) isa
+            HomotopyContinuationJL{true, C}
+        @test HomotopyContinuationJL{true, C}(AutoForwardDiff(), kwargs) isa
+            HomotopyContinuationJL{true, C}
+    end
 end
