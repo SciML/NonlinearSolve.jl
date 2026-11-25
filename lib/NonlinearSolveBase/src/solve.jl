@@ -669,15 +669,26 @@ function _solve_initialized_polycache!(cache)
     norm = oftype(_poly_resid_norm(cache.prob, resid), Inf)
     done = retcode == ReturnCode.InitialFailure
     current, best = cache.current, cache.best
-    for i in cache.start_current:length(cache.caches)
-        child = cache.caches[i]
-        ReactantCore.@trace track_numbers = false if !done
-            cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
-            u, resid, retcode, norm, done = _poly_choose(
-                cache.prob, CommonSolve.solve!(child), u, resid, retcode, norm, i == cache.start_current
-            )
-            best = ifelse(done, i, best)
-            current = ifelse(done, i, i + 1)
+    start = cache.start_current
+    for wrap in (cache.retain_best ? (false, true) : (false,))
+        last = length(cache.caches) - Int(wrap)
+        for i in cache.alg.start_index:last
+            child = cache.caches[i]
+            active = !done & (wrap ? i < start : i >= start)
+            if cache.retain_best
+                _reinit_polychild_if!(active & (i != start), child, cache.deferred_u0, cache.deferred_p)
+            end
+            ReactantCore.@trace track_numbers = false if active
+                cache.alias_u0 && copyto!(cache.u0_aliased, cache.u0)
+                u, resid, retcode, norm, done = _poly_choose(
+                    cache.prob, CommonSolve.solve!(child), u, resid, retcode, norm, i == start
+                )
+                best = ifelse(done, i, best)
+                current = ifelse(done, i, i + 1)
+            end
+            if wrap
+                cache.wrapped = cache.wrapped | active
+            end
         end
     end
     cache.current, cache.best = current, best
@@ -745,7 +756,7 @@ function _polysolve_compile_path(
         )
     end
 
-    prob, success = run_initialization!(prob, initializealg, prob)
+    prob, success = _initialize_polyproblem(prob, initializealg, kwargs)
     if !(success isa Bool)
         alg.store_original isa Val{false} || throw(
             ArgumentError(
@@ -894,7 +905,7 @@ end
     push!(
         calls,
         quote
-            prob, success = $(run_initialization!)(prob, initializealg, prob)
+            prob, success = _initialize_polyproblem(prob, initializealg, kwargs)
             if !success
                 u = $(SII.state_values)(prob)
                 return build_solution_less_specialize(

@@ -186,3 +186,111 @@ end
         @test sol.retcode == (target < 0 ? ReturnCode.InitialFailure : ReturnCode.Success)
     end
 end
+
+function poly_tolerance_problem(u; kwargs...)
+    aux = NonlinearProblem(
+        NonlinearFunction((x, p) -> x .^ 2 .- p.value; jac = (x, p) -> Diagonal(2 .* x)),
+        one.(u), AuxiliaryTarget(2.0f0); maxiters = 1,
+        termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
+    )
+    data = SciMLBase.OverrideInitData(aux, nothing, sol -> sol.u, nothing)
+    outer = NonlinearFunction(
+        (x, p) -> x .- 4; jac = (x, p) -> Diagonal(one.(x)), initialization_data = data
+    )
+    return NonlinearProblem(outer, u; kwargs...)
+end
+
+@testset "Auxiliary initialization uses the caller's tolerances" begin
+    poly = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
+    function tolerance_solve(u, ::Val{strict}, ::Val{cached}) where {strict, cached}
+        prob = strict ? poly_tolerance_problem(u; abstol = 0.4f0) : poly_tolerance_problem(u)
+        abstol = strict ? 0.01f0 : 0.4f0
+        if cached
+            cache = init(prob, poly; abstol)
+            mapped = copy(NonlinearSolveBase.get_u(cache))
+            sol = solve!(cache)
+            return sol.u, sol.resid, sol.retcode, mapped, map(c -> c.nsteps, cache.caches)
+        end
+        sol = solve(prob, poly; abstol)
+        return sol.u, sol.resid, sol.retcode, nothing, nothing
+    end
+    u = zeros(Float32, 2)
+    @testset for strict in (true, false), cached in (true, false), compiled in (false, true)
+        result = if compiled
+            Reactant.@jit tolerance_solve(Reactant.to_rarray(u), Val(strict), Val(cached))
+        else
+            tolerance_solve(u, Val(strict), Val(cached))
+        end
+        x, fx, code, mapped, steps = result
+        @test Array(x) == fill(strict ? 1.5f0 : 4.0f0, 2)
+        @test Array(fx) == Array(x) .- 4
+        @test code == (strict ? ReturnCode.InitialFailure : ReturnCode.Success)
+        if cached
+            @test Array(mapped) == fill(1.5f0, 2)
+            strict && @test Int.(steps) == (0, 0)
+        end
+    end
+end
+
+@testset "Initialized polyalgorithm tolerance accessors" begin
+    function read_tolerances(u)
+        alg = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
+        cache = init(poly_tolerance_problem(u), alg; abstol = 0.4f0, reltol = 0.2f0)
+        return NonlinearSolveBase.get_abstol(cache), NonlinearSolveBase.get_reltol(cache)
+    end
+    u = zeros(Float32, 2)
+    @test read_tolerances(u) == (0.4f0, 0.2f0)
+    @test Float32.(Reactant.@jit read_tolerances(Reactant.to_rarray(u))) == (0.4f0, 0.2f0)
+end
+
+@testset "Reuse an initialized polyalgorithm cache" begin
+    function reuse(u, ::Val{retain}) where {retain}
+        alg = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
+        cache = init(poly_tolerance_problem(u), alg; abstol = 0.4f0, maxiters = 1)
+        cache.caches[1].maxiters = 0
+        first_sol = solve!(cache)
+        first_result = (copy(first_sol.u), copy(first_sol.resid), first_sol.retcode, cache.best)
+        reinit!(cache, zero.(u); retain_best = retain)
+        start = cache.current
+        cache.caches[1].maxiters = 1
+        cache.caches[2].maxiters = 0
+        second_sol = solve!(cache)
+        return first_result, start, (second_sol.u, second_sol.resid, second_sol.retcode, cache.best), cache.wrapped, cache.caches[2].retcode
+    end
+    u = zeros(Float32, 2)
+    @testset for retain in (false, true), compiled in (false, true)
+        first_result, start, second_result, wrapped, second_code = if compiled
+            Reactant.@jit reuse(Reactant.to_rarray(u), Val(retain))
+        else
+            reuse(u, Val(retain))
+        end
+        @test Int(start) == (retain ? 2 : 1)
+        @test Bool(wrapped) == retain
+        @test second_code == (retain ? ReturnCode.MaxIters : ReturnCode.Default)
+        for ((x, fx, code, best), winner) in ((first_result, 2), (second_result, 1))
+            @test Array(x) == fill(4.0f0, 2)
+            @test Array(fx) == Array(x) .- 4
+            @test code == ReturnCode.Success
+            @test Int(best) == winner
+        end
+    end
+end
+
+@testset "Scalar trust-region steps" begin
+    function scalar_step(u, alg)
+        f = NonlinearFunction((x, p) -> x - 4; jac = (x, p) -> one(x))
+        return solve(
+            NonlinearProblem(f, u), alg;
+            maxiters = 1, termination_condition = AbsNormTerminationMode(abs)
+        )
+    end
+    @testset for (alg, x, code) in (
+                (LevenbergMarquardt(; finite_diff_step_geodesic = 0.125f0), 2.0f0, ReturnCode.MaxIters),
+                (TrustRegion(; initial_trust_radius = 8.0f0), 4.0f0, ReturnCode.Success),
+            ), compiled in (false, true)
+        sol = compiled ? Reactant.@jit(scalar_step(Reactant.ConcreteRNumber(0.0f0), alg)) : scalar_step(0.0f0, alg)
+        @test Float32(sol.u) == x
+        @test Float32(sol.resid) == x - 4
+        @test sol.retcode == code
+    end
+end

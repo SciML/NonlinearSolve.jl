@@ -41,3 +41,28 @@ using Test
         @test Array(compiled.resid) ≈ host.resid atol = 1.0f-5
     end
 end
+
+@testset "Broyden update with regular and zero denominators" begin
+    function update(dfu, du, rule, ::Val{diagonal}) where {diagonal}
+        J = diagonal ? Diagonal(one.(du)) : diagm(one.(du))
+        api = NonlinearSolveBase.InternalAPI
+        cache = api.init(NonlinearProblem((x, p) -> x, du), rule, J, zero.(dfu), du, du)
+        updated = api.solve!(cache, J, dfu, du, du)
+        return diagonal ? diag(updated) : cache.du_cache
+    end
+    @testset for good in (true, false), diagonal in (true, false), singular in (true, false)
+        rule = Broyden(; update_rule = Val(good ? :good_broyden : :bad_broyden)).update_rule
+        dfu = good || !singular ? Float32[1, 0] : Float32[0, 0]
+        du = good && singular ? Float32[0, -4] : Float32[2, -4]
+        denom = singular ? 1.0f-5 : good ? 2.0f0 : 1.0f0
+        expected = if diagonal && good
+            1 .+ (du .- dfu .* du) .* du ./ denom
+        elseif diagonal
+            1 .+ (du .- dfu) .* dfu ./ denom
+        else
+            (du .- dfu) ./ denom
+        end
+        result = Reactant.@jit update(Reactant.to_rarray(dfu), Reactant.to_rarray(du), rule, Val(diagonal))
+        @test Array(result) == expected
+    end
+end

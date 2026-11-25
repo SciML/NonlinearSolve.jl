@@ -256,7 +256,7 @@ function InternalAPI.solve!(
     norm_v = cache.internalnorm(v)
     β = dot(v, cache.v_cache) / (norm_v * cache.norm_v_old)
 
-    @bb @. cache.u_cache = u + δu
+    cache.u_cache = _trial_iterate!!(cache.u_cache, u, δu)
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
     ReactantCore.within_compile() || (cache.stats.nf += 1)
 
@@ -265,7 +265,7 @@ function InternalAPI.solve!(
     accepted = (1 - β)^cache.β_uphill * loss ≤ cache.loss_old
     cache.last_step_accepted = accepted
     cache.norm_v_old = ifelse(accepted, norm_v, cache.norm_v_old)
-    @bb @. cache.v_cache = ifelse(accepted, v, cache.v_cache)
+    cache.v_cache = _accept_trial!!(cache.v_cache, v, accepted)
 
     return cache.last_step_accepted, cache.u_cache, cache.fu_cache
 end

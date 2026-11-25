@@ -572,7 +572,7 @@ function InternalAPI.solve!(
         cache::GenericTrustRegionSchemeCache, J, fu, u, δu, descent_stats
     )
     T = promote_type(eltype(u), eltype(fu))
-    @bb @. cache.u_cache = u + δu
+    cache.u_cache = _trial_iterate!!(cache.u_cache, u, δu)
     cache.fu_cache = Utils.evaluate_f!!(cache.f, cache.fu_cache, cache.u_cache, cache.p)
     ReactantCore.within_compile() || (cache.stats.nf += 1)
 
