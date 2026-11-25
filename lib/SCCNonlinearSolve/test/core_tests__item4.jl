@@ -125,10 +125,20 @@ if VERSION >= v"1.11"
 end
 
 @testset "Forwarding to an explicit FunctionWrapper" begin
-    forward(p, sols) = ef2_wrapped(p, sols)
-    forwarded = SciMLBase.SCCNonlinearProblem(probs, Any[explicitfun1_raw, forward])
+    forwarded_probs = [
+        NonlinearProblem(nf1, zeros(2), zeros(3)),
+        NonlinearProblem(nf2, zeros(3), zeros(3)),
+    ]
+    forward_calls = Ref(0)
+    function forward(p, sols)
+        forward_calls[] += 1
+        return ef2_wrapped(p, sols)
+    end
+    forwarded = SciMLBase.SCCNonlinearProblem(forwarded_probs, Any[explicitfun1_raw, forward])
     sol = solve(forwarded, scc_alg_debug)
     @test SciMLBase.successful_retcode(sol)
+    @test forward_calls[] == 1
+    @test forwarded_probs[2].p[1] == sol.original[1].u[1]
     @test sol.u ≈ ref_sol.u atol = 1.0e-10
     @test isconcretetype(eltype(sol.original))
 end
