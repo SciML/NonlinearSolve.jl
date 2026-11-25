@@ -30,18 +30,21 @@ end
 @testset "Dense Newton retains small nonzero pivots" begin
     f(u, A) = A * u .- 1
     jac(u, A) = A
-    function scaled_newton(u, A)
+    function scaled_newton(u, A, budget)
         return solve(
             NonlinearProblem(NonlinearFunction(f; jac), u, A), NewtonRaphson();
-            abstol = 1.0f-6, maxiters = 8
+            abstol = 1.0f-6, maxiters = budget
         )
     end
-    u, A = zeros(Float32, 2), diagm(Float32[1, 2.0^-26])
-    compiled = Reactant.@jit scaled_newton(Reactant.to_rarray(u), Reactant.to_rarray(A))
-    for sol in (scaled_newton(u, A), compiled)
-        @test Array(sol.u) == Float32[1, 2^26]
-        @test f(Array(sol.u), A) == Array(sol.resid) == zeros(Float32, 2)
-        @test sol.retcode == ReturnCode.Success
+    u = zeros(Float32, 2)
+    for (power, budget) in ((26, 8), (27, 3))
+        A = diagm(Float32[1, 2.0f0^(-power)])
+        compiled = Reactant.@jit scaled_newton(Reactant.to_rarray(u), Reactant.to_rarray(A), budget)
+        for sol in (scaled_newton(u, A, budget), compiled)
+            @test Array(sol.u) == Float32[1, 2^power]
+            @test f(Array(sol.u), A) == Array(sol.resid) == zeros(Float32, 2)
+            @test sol.retcode == ReturnCode.Success
+        end
     end
     inverse(A) = NonlinearSolveBase.Utils.linsolve_identity!!(nothing, A)
     for (pivot, expected) in ((2.0f0^-26, 2.0f0^26), (0.0f0, 0.0f0))

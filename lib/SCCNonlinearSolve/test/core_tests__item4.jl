@@ -146,3 +146,14 @@ end
     @test SciMLBase.successful_retcode(sol)
     @test sol.u ≈ ref_sol.u atol = 1.0e-10
 end
+
+@testset "Ordinary transfer callbacks receive a view" begin
+    transfer(p, history::SubArray) = explicitfun2_raw(p, history)
+    for callback in (transfer, decorate(transfer))
+        blocks = [remake(prob; p = zero(prob.p)) for prob in probs]
+        sol = solve(SciMLBase.SCCNonlinearProblem(blocks, [explicitfun1_raw, callback]), scc_alg)
+        @test SciMLBase.successful_retcode(sol)
+        @test blocks[2].p[1] == sol.u[1]
+        @test sol.u ≈ ref_sol.u atol = 1.0e-10
+    end
+end

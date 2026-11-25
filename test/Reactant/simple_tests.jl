@@ -97,3 +97,39 @@ end
         end
     end
 end
+
+@testset "Simple Newton evaluates the Jacobian once per attempted step" begin
+    f(x, calls) = x .^ 2 .- 1
+    function jac(x, calls)
+        calls .+= 1
+        return diagm(2 .* x)
+    end
+    for (problem, alg) in (
+            (NonlinearProblem, SimpleNewtonRaphson()),
+            (NonlinearLeastSquaresProblem, SimpleGaussNewton()),
+        )
+        for (initial, budget, expected, count, code) in (
+                (1.001f0, 1, 1.001f0, 0, ReturnCode.Success),
+                (2.0f0, 0, 2.0f0, 0, ReturnCode.MaxIters),
+                (2.0f0, 1, 1.25f0, 1, ReturnCode.MaxIters),
+            )
+            run(x, calls) = solve(
+                problem(NonlinearFunction(f; jac), x, calls), alg;
+                abstol = 0.01f0, maxiters = budget
+            )
+            for compiled in (false, true)
+                x, calls = [initial], zeros(Int32, 1)
+                if compiled
+                    x, calls = Reactant.to_rarray(x), Reactant.to_rarray(calls)
+                    sol = Reactant.@jit run(x, calls)
+                else
+                    sol = run(x, calls)
+                end
+                @test only(Array(calls)) == count
+                @test sol.retcode == code
+                @test Array(sol.u) == [expected]
+                @test Array(sol.resid) ≈ f([expected], nothing) atol = eps(Float32)
+            end
+        end
+    end
+end

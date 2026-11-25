@@ -162,22 +162,27 @@ function sols_buffer_eltype(explicitfuns, T, uType, rType)
     return extracted === nothing ? default : extracted
 end
 
-struct SCCHistory{S, V <: AbstractVector{S}} <: AbstractVector{S}
-    completed::V
+struct SCCHistory{S} <: AbstractVector{S}
+    solutions::Vector{S}
 end
 
-Base.size(h::SCCHistory) = size(h.completed)
-Base.getindex(h::SCCHistory, i::Int) = h.completed[i]
-Base.setindex!(h::SCCHistory, value, i::Int) = setindex!(h.completed, value, i)
+Base.IndexStyle(::Type{<:SCCHistory}) = IndexLinear()
+Base.size(h::SCCHistory) = size(h.solutions)
+Base.getindex(h::SCCHistory, i::Int) = h.solutions[i]
+Base.setindex!(h::SCCHistory, value, i::Int) = setindex!(h.solutions, value, i)
 
-function Base.convert(::Type{V}, h::SCCHistory) where {S, V <: SubArray{S, 1}}
-    h.completed isa V && return h.completed
-    return view(Vector{S}(h.completed), 1:length(h))::V
+function Base.convert(
+        ::Type{V}, h::SubArray{<:Any, 1, <:SCCHistory}
+    ) where {S, V <: SubArray{S, 1}}
+    h isa V && return h
+    completed = view(parent(h).solutions, parentindices(h)...)
+    completed isa V && return completed
+    return view(Vector{S}(completed), 1:length(h))::V
 end
 
 function callback_history(f, p, completed)
     _explicitfun_sols_eltype(typeof(f)) === eltype(completed) && return completed
-    history = SCCHistory(completed)
+    history = view(SCCHistory(parent(completed)), parentindices(completed)...)
     return applicable(f, SciMLBase.unwrap_parameters(p), history) ? history : completed
 end
 
