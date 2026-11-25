@@ -7,6 +7,8 @@ using Reactant
 using SciMLBase
 using Test
 
+include("tutorial_newton.jl")
+
 function dealias_predicate(u, ::Val{scalar}) where {scalar}
     predicate = scalar ? sum(u) > 0 : u .> 0
     return NonlinearSolveBase.dealias_traced!(predicate)::typeof(predicate)
@@ -31,26 +33,49 @@ end
     @test Float32(result) == 6.0f0
 end
 
-# Verbatim tutorial example from docs/src/tutorials/nonlinear_solve_gpus.md
-# ("Whole-solve compilation with Reactant.jl").
-@testset "docs/tutorials/nonlinear_solve_gpus.md Reactant NewtonRaphson example" begin
-    import NonlinearSolve as NLS
-    import Reactant
-    import LinearAlgebra: diagm
+mutable struct FrozenParam{A}
+    const value::A
+end
 
-    f(u, p) = u .* u .- p
-    jac(u, p) = diagm(0 => 2 .* u)
+mutable struct FrozenCycle{A}
+    const value::A
+    next::Ref{FrozenCycle{A}}
+end
 
-    function reactant_solve(u0, p)
-        prob = NLS.NonlinearProblem(NLS.NonlinearFunction(f; jac), u0, p)
-        return NLS.solve(prob, NLS.NewtonRaphson())
+@testset "Dealiasing preserves shared and cyclic const-field objects" begin
+    function copy_cycle(value)
+        node = FrozenCycle(value, Ref{FrozenCycle{typeof(value)}}())
+        node.next[] = node
+        link, a, b = NonlinearSolveBase.dealias_traced!((node.next, node, node))
+        a.value .+= 1
+        return a === b, a.next === link && link[] === a, node.next[] === node, b.value, node.value
     end
+    shared, cycle, original_cycle, updated, original = Reactant.@jit copy_cycle(
+        Reactant.to_rarray(Float32[2])
+    )
+    @test Bool(shared)
+    @test Bool(cycle)
+    @test Bool(original_cycle)
+    @test Array(updated) == Float32[3]
+    @test Array(original) == Float32[2]
+end
 
-    u0 = Reactant.to_rarray(Float32[1, 1])
-    p = Reactant.to_rarray(Float32[2])
-    sol = Reactant.@jit reactant_solve(u0, p)
-    @test sol.retcode == ReturnCode.Success
-    @test Array(sol.u) ≈ fill(sqrt(2.0f0), 2)
+@testset "Compiled Newton with a const parameter field" begin
+    f(u, p) = u .- p.value
+    jac(u, p) = Diagonal(one.(u))
+    function solve_frozen(u, p)
+        return solve(NonlinearProblem(NonlinearFunction(f; jac), u, p), NewtonRaphson())
+    end
+    u, target = Float32[1], Float32[2]
+    p = FrozenParam(Reactant.to_rarray(target))
+    field = p.value
+    host = solve_frozen(u, FrozenParam(target))
+    compiled = Reactant.@jit solve_frozen(Reactant.to_rarray(u), p)
+    @test host.retcode == compiled.retcode == ReturnCode.Success
+    @test Array(compiled.u) == host.u == Float32[2]
+    @test Array(compiled.resid) == host.resid == Float32[0]
+    @test p.value === field
+    @test Array(p.value) == Float32[2]
 end
 
 f(u, p) = u .* u .- p
@@ -550,6 +575,23 @@ end
     )
     @test Array(sol.u) ≈ Array(sol_host.u) rtol = 1.0f-4
     @test !isnothing(sol.original)
+end
+
+@testset "Box bounds require the host transformation" begin
+    function bounded_broyden(u)
+        prob = NonlinearProblem((x, p) -> x .- 2, u; lb = zero.(u), ub = 4 .* one.(u))
+        return solve(prob, Broyden())
+    end
+    u = Float32[1]
+    @test bounded_broyden(u).u ≈ Float32[2]
+    err = try
+        Reactant.@compile bounded_broyden(Reactant.to_rarray(u))
+        nothing
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("box-bounds transformation", sprint(showerror, err))
 end
 
 include("first_order_tests.jl")

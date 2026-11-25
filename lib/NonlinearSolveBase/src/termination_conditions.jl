@@ -424,8 +424,9 @@ end
 
 function check_convergence(norm::NormTerminationMode, duₙ, uₙ, _, abstol, reltol)
     du_norm = Utils.apply_norm(norm.internalnorm, duₙ)
-    return (du_norm ≤ abstol) ||
-        (du_norm ≤ reltol * Utils.apply_norm(norm.internalnorm, duₙ, uₙ))
+    absolute = du_norm ≤ abstol
+    !ReactantCore.within_compile() && absolute && return true
+    return absolute | (du_norm ≤ reltol * Utils.apply_norm(norm.internalnorm, duₙ, uₙ))
 end
 
 function check_convergence(mode::RelNormModes, duₙ, uₙ, _, __, reltol)

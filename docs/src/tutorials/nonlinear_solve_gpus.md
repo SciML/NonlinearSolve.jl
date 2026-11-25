@@ -119,8 +119,9 @@ residual fails the convergence test and iteration continues.
 
 Compiled first-order solves require an inactive Jacobian reuse policy. For problems where
 the automatic policy enables reuse, set `jacobian_reuse = false` to request a fresh
-Jacobian at each step. The compiled matrix linear-solve callback supports the default
-linear solver only.
+Jacobian at each step. Dense matrix solves use a device-side singular value decomposition with the
+default linear solver. Run solves with a custom matrix solver or linear-solver options
+outside Reactant compilation. Whole-solve compilation does not support the box-bounds transformation.
 
 Quasi-Newton Jacobian reset rules and `max_resets` are evaluated under compile. The compiled
 solver updates the `dfu` baseline after a du-stall reset and evaluates reset rules while

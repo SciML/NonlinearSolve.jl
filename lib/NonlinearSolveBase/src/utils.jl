@@ -317,15 +317,10 @@ function linsolve_identity!!(workspace, A::AbstractMatrix)
     if workspace === nothing
         workspace, workspace_A = linsolve_workspace(A)
         if workspace === nothing
-            # Traced arrays report `!fast_scalar_indexing` and `pinv` is not traceable.
-            # LinearSolve's Reactant overlay runs the default host algorithm on the
-            # matrix RHS, so the singular rescue matches the workspace path. Writing
-            # into `workspace_A` keeps the buffer that `@trace if` callers carry.
             if ReactantCore.within_compile()
                 rhs = similar(workspace_A)
                 rhs .= axes(workspace_A, 1) .== axes(workspace_A, 2)'
-                X = SciMLBase.solve(SciMLBase.LinearProblem(workspace_A, rhs)).u
-                workspace_A .= X
+                workspace_A .= traced_matrix_solve(workspace_A, rhs)
                 return workspace_A
             end
             return pinv(workspace_A)
@@ -339,6 +334,8 @@ function linsolve_identity!!(workspace, A::AbstractMatrix)
     make_identity!!(workspace.rhs, true)
     return workspace.lincache(; A, b = workspace.rhs).u
 end
+
+traced_matrix_solve(A, b) = LinearAlgebra.svd(A) \ b
 
 function initial_jacobian_scaling_alpha(α, u, fu, ::Any)
     return convert(promote_type(eltype(u), eltype(fu)), α)

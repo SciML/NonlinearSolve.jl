@@ -309,7 +309,7 @@ function scale_levenberg_marquardt_diagonal(λ, DᵀD::Diagonal)
     return Diagonal(λ .* DᵀD.diag)
 end
 
-# Host reuses `J_damped` (master `@bb @.` path). Under Reactant compilation the
+# Host reuses `J_damped`. Under Reactant compilation the
 # allocating scale is used so traced buffers are not mutated through aliases.
 function _scale_levenberg_marquardt_damping!(cache::LevenbergMarquardtDampingCache)
     if ReactantCore.within_compile() || cache.J_damped isa Number ||
