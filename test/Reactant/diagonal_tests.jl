@@ -98,3 +98,43 @@ end
         @test sol.retcode == ReturnCode.Success
     end
 end
+
+@testset "Complex scalar Broyden" begin
+    scalar_residual(x, p) = x / 2 - p
+    function scalar_update(dfu, du, rule)
+        H = one(du)
+        api = NonlinearSolveBase.InternalAPI
+        cache = api.init(NonlinearProblem(scalar_residual, du, dfu), Broyden(; update_rule = rule).update_rule, H, zero(dfu), du, du)
+        return api.solve!(cache, H, dfu, du, du)
+    end
+    function scalar_solve(u0, p, rule)
+        return solve(NonlinearProblem(scalar_residual, u0, p), Broyden(; alpha = 1.0f0, update_rule = rule); maxiters = 2)
+    end
+
+    p = ComplexF32(1 + 2im)
+    u0 = zero(p)
+    dfu = p / 2
+    @testset "Inverse secant, compiled=$compiled" for compiled in (false, true), rule in (Val(:good_broyden), Val(:bad_broyden)), (dfu, p) in ((dfu, p), (ComplexF32(im), ComplexF32(2im)))
+        H = if compiled
+            Reactant.@jit scalar_update(Reactant.ConcreteRNumber(dfu), Reactant.ConcreteRNumber(p), rule)
+        else
+            scalar_update(dfu, p, rule)
+        end
+        @test convert(ComplexF32, H) * dfu == p
+    end
+    @testset "Two-step solve, compiled=$compiled" for compiled in (false, true), rule in (Val(:good_broyden), Val(:bad_broyden)), p in (p, ComplexF32(2im))
+        sol = if compiled
+            Reactant.@jit scalar_solve(Reactant.ConcreteRNumber(u0), Reactant.ConcreteRNumber(p), rule)
+        else
+            scalar_solve(u0, p, rule)
+        end
+        u = convert(ComplexF32, sol.u)
+        @test u == 2p
+        if p == ComplexF32(1 + 2im)
+            @test u == ComplexF32(2 + 4im)
+        end
+        @test scalar_residual(u, p) == zero(p)
+        @test convert(ComplexF32, sol.resid) == zero(p)
+        @test sol.retcode == ReturnCode.Success
+    end
+end

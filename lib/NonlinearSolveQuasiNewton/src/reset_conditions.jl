@@ -97,7 +97,7 @@ function _no_change_reset_traced!(cache::NoChangeInStateResetCache, fu, du)
     nsteps = cache.condition.nsteps
 
     if cache.condition.check_du
-        du_stalled = all(cond, du)
+        du_stalled = du isa Number ? cond(du) : all(cond, du)
         steps_du = ifelse(du_stalled, cache.steps_since_change_du + 1, 0)
         reset_du = du_stalled & (steps_du ≥ nsteps)
         cache.steps_since_change_du = ifelse(reset_du, 0, steps_du)
@@ -108,8 +108,12 @@ function _no_change_reset_traced!(cache::NoChangeInStateResetCache, fu, du)
     end
 
     if cache.condition.check_dfu
-        @bb @. cache.dfu = fu - cache.dfu
-        dfu_stalled = all(cond, cache.dfu)
+        dfu_stalled = if fu isa Number
+            cond(fu - cache.dfu)
+        else
+            @bb @. cache.dfu = fu - cache.dfu
+            all(cond, cache.dfu)
+        end
         steps_dfu = ifelse(dfu_stalled, cache.steps_since_change_dfu + 1, 0)
         reset_dfu = (!reset) & dfu_stalled & (steps_dfu ≥ nsteps)
         cache.steps_since_change_dfu = ifelse(
