@@ -133,6 +133,23 @@ function NonlinearSolveBase.reset_update_rule_state!(cache::BroydenUpdateRuleCac
 end
 
 function InternalAPI.solve!(
+        cache::BroydenUpdateRuleCache, J⁻¹::Number, fu, u, du; kwargs...
+    )
+    dfu = fu - cache.dfu
+    J⁻¹dfu = J⁻¹ * dfu
+    if cache.rule isa GoodBroydenUpdateRule
+        right = conj(du) * J⁻¹
+        denom = dot(du, J⁻¹dfu)
+    else
+        right = dfu
+        denom = cache.internalnorm(dfu)^2
+    end
+    denom = ifelse(iszero(denom), eltype(u)(1.0e-5), denom)
+    cache.dfu = fu
+    return J⁻¹ + ((du - J⁻¹dfu) / denom) * right
+end
+
+function InternalAPI.solve!(
         cache::BroydenUpdateRuleCache, J⁻¹, fu, u, du; kwargs...
     )
     T = eltype(u)
@@ -140,7 +157,13 @@ function InternalAPI.solve!(
     @bb cache.J⁻¹dfu = J⁻¹ × vec(cache.dfu)
     if cache.rule isa GoodBroydenUpdateRule
         # Transposing this column gives the right factor du' * J⁻¹.
-        @bb cache.u_cache = transpose(J⁻¹) × vec(conj(du))
+        if eltype(du) <: Real
+            right_step = du
+        else
+            @bb @. cache.du_cache = conj(du)
+            right_step = cache.du_cache
+        end
+        @bb cache.u_cache = transpose(J⁻¹) × vec(right_step)
         denom = dot(du, cache.J⁻¹dfu)
         rmul = transpose(Utils.safe_vec(cache.u_cache))
     else

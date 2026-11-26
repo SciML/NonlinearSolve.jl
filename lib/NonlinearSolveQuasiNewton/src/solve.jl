@@ -501,7 +501,7 @@ function _quasi_newton_install_jacobian!(cache, J_set)
         nothing  # Low-rank reinit mutates cache.J in place via initialization
     elseif cache.J === J_set
         nothing
-    elseif ArrayInterface.can_setindex(cache.J)
+    elseif !(cache.J isa Number) && ArrayInterface.can_setindex(cache.J)
         copyto!(cache.J, J_set)
     else
         cache.J = J_set
@@ -683,7 +683,11 @@ function _quasi_newton_apply_descent!(cache, J, δu, descent_intermediates)
         return true
     elseif cache.globalization isa Val{:None}
         @static_timeit cache.timer "step" begin
-            @bb axpy!(1, δu, cache.u)
+            if cache.u isa Number
+                cache.u += δu
+            else
+                @bb axpy!(1, δu, cache.u)
+            end
             cache.u = NonlinearSolveBase.apply_postcondition!!(
                 cache.u, cache.u_cache, cache
             )

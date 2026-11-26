@@ -2,6 +2,7 @@ using NonlinearSolveQuasiNewton
 include("setup_corerootfindtesting.jl")
 
 using ADTypes, LineSearch
+using LinearAlgebra: diagm
 using LineSearches: LineSearches
 using BenchmarkTools: @ballocated
 using StaticArrays: @SVector
@@ -64,4 +65,15 @@ end
             end
         end
     end
+end
+
+@testset "Dense complex good Broyden update" for n in (8, 128, 1024)
+    du = fill(ComplexF32(1 + 2im), n)
+    dfu = du / 2
+    H = diagm(one.(du))
+    api = NonlinearSolveBase.InternalAPI
+    cache = api.init(NonlinearProblem((x, p) -> x, du), Broyden().update_rule, H, zero(dfu), du, du)
+    api.solve!(deepcopy(cache), copy(H), dfu, du, du)
+    @test (@allocated api.solve!(cache, H, dfu, du, du)) == 0
+    @test H * dfu ≈ du
 end
