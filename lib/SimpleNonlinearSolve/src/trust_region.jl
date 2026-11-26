@@ -4,7 +4,7 @@
         initial_trust_radius = 0.0, step_threshold = nothing,
         shrink_threshold = nothing, expand_threshold = nothing,
         shrink_factor = 0.25, expand_factor = 2.0, max_shrink_times::Int = 32,
-        nlsolve_update_rule = Val(false)
+        nlsolve_update_rule = Val(false), curvature_scaling = Val(false)
     )
 
 A low-overhead implementation of a trust-region solver. This method is non-allocating on
@@ -17,7 +17,8 @@ scalar and static array problems.
     `DifferentiationInterface.jl`.
   - `max_trust_radius`: an explicit cap on trust region radius growth. With the default
     value `0`, the standard rule uses `max(norm(f(u0)), maximum(u0) - minimum(u0))`
-    as its cap, and the alternate rule grows the radius adaptively.
+    or the supplied initial radius, whichever is larger. The alternate rule
+    grows the radius adaptively.
   - `initial_trust_radius`: the initial trust region radius. Defaults to
     `max_trust_radius / 11`.
   - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
@@ -44,6 +45,9 @@ scalar and static array problems.
     update rule from NLSolve.jl. Defaults to `Val(false)`. If set to `Val(true)`, few of the
     radius update parameters -- `step_threshold = 0.05`, `expand_threshold = 0.9`, and
     `shrink_factor = 0.5` -- have different defaults.
+  - `curvature_scaling`: set to `Val(true)` to use the least-squares Cauchy point
+    in the dogleg step. The default, `Val(false)`, preserves the historical
+    unscaled steepest descent endpoint and its convergence behavior.
 """
 @kwdef @concrete struct SimpleTrustRegion <: AbstractSimpleNonlinearSolveAlgorithm
     autodiff = nothing
@@ -56,6 +60,7 @@ scalar and static array problems.
     expand_factor = 2.0
     max_shrink_times::Int = 32
     nlsolve_update_rule = Val(false)
+    curvature_scaling = Val(false)
 end
 
 function SciMLBase.__solve(
@@ -115,7 +120,7 @@ function SciMLBase.__solve(
     # The automatic cap applies only to the standard update rule.
     if iszero(Δₘₐₓ)
         Δₘₐₓ = NLBUtils.unwrap_val(alg.nlsolve_update_rule) ?
-            T(Inf) : max(norm_fx, maximum(x) - minimum(x))
+            T(Inf) : max(norm_fx, maximum(x) - minimum(x), Δ)
     end
     if iszero(Δ)
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
@@ -135,7 +140,12 @@ function SciMLBase.__solve(
     @bb δN_δsd = copy(x)
     @bb δN = copy(x)
     @bb Hδ = copy(x)
-    dogleg_cache = (; δsd, δN_δsd, δN)
+    dogleg_cache = if NLBUtils.unwrap_val(alg.curvature_scaling)
+        # Match the output shape and element type of the Jacobian-vector product.
+        (; δsd, δN_δsd, δN, Jd = J * NLBUtils.safe_vec(g))
+    else
+        (; δsd, δN_δsd, δN)
+    end
 
     solved, retcode, fx_sol, x_sol = Utils.check_termination(
         tc_cache, fx, x, xo, prob
@@ -211,15 +221,9 @@ function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
     # Test if the full step is within the trust region
     (L2_NORM(δN) ≤ Δ) && return δN
 
-    # Calculate Cauchy point, optimum along the steepest descent direction
-    @bb δsd .= g
-    @bb @. δsd *= -1
-    norm_δsd = L2_NORM(δsd)
-
-    if (norm_δsd ≥ Δ)
-        @bb @. δsd *= Δ / norm_δsd
-        return δsd
-    end
+    Jd = get(cache, :Jd, nothing)
+    δsd, on_boundary = cauchy_step!!(δsd, Jd, J, g, Δ)
+    on_boundary && return δsd
 
     # Find the intersection point on the boundary
     @bb @. δN_δsd = δN - δsd
@@ -230,4 +234,30 @@ function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
     tau = (-dot_δsd_δN_δsd + sqrt(fact)) / dot_δN_δsd
     @bb @. δsd += tau * δN_δsd
     return δsd
+end
+
+function cauchy_step!!(δsd, ::Nothing, J, g, Δ)
+    @bb @. δsd = -g
+    descent_norm = L2_NORM(δsd)
+    if descent_norm ≥ Δ
+        @bb @. δsd *= Δ / descent_norm
+        return δsd, true
+    end
+    return δsd, false
+end
+
+function cauchy_step!!(δsd, Jd, J, g, Δ)
+    gradient_norm = LinearAlgebra.norm(g)
+    if iszero(gradient_norm)
+        @bb @. δsd = zero(g)
+        return δsd, true
+    end
+
+    @bb @. δsd = -g / gradient_norm
+    @bb Jd = J × NLBUtils.safe_vec(δsd)
+    curvature_norm = LinearAlgebra.norm(Jd)
+    cauchy_length = iszero(curvature_norm) ? Δ :
+        min((gradient_norm / curvature_norm) / curvature_norm, Δ)
+    @bb @. δsd *= cauchy_length
+    return δsd, cauchy_length == Δ
 end

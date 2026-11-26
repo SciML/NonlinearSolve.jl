@@ -8,6 +8,8 @@ quadratic_f!(du, u, p) = (du .= u .* u .- p)
         SimpleNewtonRaphson(),
         SimpleTrustRegion(),
         SimpleTrustRegion(; nlsolve_update_rule = Val(true)),
+        SimpleTrustRegion(; curvature_scaling = Val(true)),
+        SimpleTrustRegion(; nlsolve_update_rule = Val(true), curvature_scaling = Val(true)),
         SimpleBroyden(),
         SimpleLimitedMemoryBroyden(),
         SimpleKlement(),

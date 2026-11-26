@@ -4,3 +4,4 @@
 @safetestset "Newton Fails" include("rootfind_tests__item4.jl")
 @safetestset "Kwargs Propagation" include("rootfind_tests__item5.jl")
 @safetestset "Trust-region radius updates" include("rootfind_tests__item6.jl")
+@safetestset "Scale-safe dogleg" include("rootfind_tests__item7.jl")
