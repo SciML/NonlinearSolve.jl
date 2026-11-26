@@ -372,6 +372,10 @@ function make_identity!!(::SMatrix{S1, S2, T, L}, α) where {S1, S2, T, L}
 end
 function make_identity!!(A::AbstractMatrix{T}, α) where {T}
     A = ArrayInterface.can_setindex(A) ? A : similar(A)
+    if ReactantCore.within_compile()
+        A .= ifelse.(axes(A, 1) .== axes(A, 2)', α, zero(α))
+        return A
+    end
     fill!(A, false)
     if ArrayInterface.fast_scalar_indexing(A)
         @simd ivdep for i in axes(A, 1)

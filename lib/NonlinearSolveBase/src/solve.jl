@@ -756,7 +756,11 @@ function _polysolve_compile_path(
         )
     end
 
-    prob, success = _initialize_polyproblem(prob, initializealg, kwargs)
+    # Keep traced member solves from rebinding the caller's device tolerances.
+    abstol_kw = haskey(kwargs, :abstol) ? (; abstol = dealias_traced!(kwargs[:abstol])) : (;)
+    reltol_kw = haskey(kwargs, :reltol) ? (; reltol = dealias_traced!(kwargs[:reltol])) : (;)
+    solve_kwargs = (; kwargs..., abstol_kw..., reltol_kw...)
+    prob, success = _initialize_polyproblem(prob, initializealg, solve_kwargs)
     if !(success isa Bool)
         alg.store_original isa Val{false} || throw(
             ArgumentError(
@@ -764,7 +768,7 @@ function _polysolve_compile_path(
             )
         )
         u, resid, retcode = _initialized_result(prob, success) do
-            _polysolve_compile_initialized(prob, alg, solve_args, stats, alias_u0, verbose, kwargs)
+            _polysolve_compile_initialized(prob, alg, solve_args, stats, alias_u0, verbose, solve_kwargs)
         end
         return build_solution_less_specialize(prob, alg, u, resid; retcode)
     elseif !success
@@ -774,7 +778,7 @@ function _polysolve_compile_path(
             retcode = ReturnCode.InitialFailure, alg.store_original
         )
     end
-    return _polysolve_compile_initialized(prob, alg, solve_args, stats, alias_u0, verbose, kwargs)
+    return _polysolve_compile_initialized(prob, alg, solve_args, stats, alias_u0, verbose, solve_kwargs)
 end
 
 function _polysolve_compile_initialized(

@@ -1,4 +1,4 @@
-using LinearAlgebra: diagm
+using LinearAlgebra: Diagonal, diag, diagm, dot
 using NonlinearSolve
 using Reactant
 using Test
@@ -48,21 +48,51 @@ end
         api = NonlinearSolveBase.InternalAPI
         cache = api.init(NonlinearProblem((x, p) -> x, du), rule, J, zero.(dfu), du, du)
         updated = api.solve!(cache, J, dfu, du, du)
-        return diagonal ? diag(updated) : cache.du_cache
+        return diagonal ? diag(updated) : updated
     end
     @testset for good in (true, false), diagonal in (true, false), singular in (true, false)
         rule = Broyden(; update_rule = Val(good ? :good_broyden : :bad_broyden)).update_rule
         dfu = good || !singular ? Float32[1, 0] : Float32[0, 0]
         du = good && singular ? Float32[0, -4] : Float32[2, -4]
-        denom = singular ? 1.0f-5 : good ? 2.0f0 : 1.0f0
-        expected = if diagonal && good
-            1 .+ (du .- dfu .* du) .* du ./ denom
-        elseif diagonal
-            1 .+ (du .- dfu) .* dfu ./ denom
-        else
-            (du .- dfu) ./ denom
+        H = diagm(one.(du))
+        denom = good ? dot(du, H * dfu) : dot(dfu, dfu)
+        right = good ? du' * H : dfu'
+        expected = H + (du - H * dfu) * right / (iszero(denom) ? 1.0f-5 : denom)
+        host = update(dfu, du, rule, Val(diagonal))
+        compiled = Reactant.@jit update(Reactant.to_rarray(dfu), Reactant.to_rarray(du), rule, Val(diagonal))
+        for result in (host, compiled)
+            @test Array(result) == (diagonal ? diag(expected) : expected)
         end
-        result = Reactant.@jit update(Reactant.to_rarray(dfu), Reactant.to_rarray(du), rule, Val(diagonal))
-        @test Array(result) == expected
+    end
+    @testset "One-dimensional inverse secant" for diagonal in (true, false), compiled in (false, true)
+        dfu, du = Float32[1], Float32[2]
+        rule = Broyden().update_rule
+        result = if compiled
+            Reactant.@jit update(Reactant.to_rarray(dfu), Reactant.to_rarray(du), rule, Val(diagonal))
+        else
+            update(dfu, du, rule, Val(diagonal))
+        end
+        @test only(Array(result)) * only(dfu) == only(du)
+    end
+end
+
+@testset "Two-step Broyden solve" begin
+    function two_steps(u, target, rule)
+        prob = NonlinearProblem((x, p) -> x ./ 2 .- p, u, target)
+        return solve(prob, Broyden(; update_rule = rule, alpha = 1.0f0); maxiters = 2)
+    end
+    @testset for (rule, target) in (
+                (Val(:diagonal), Float32[2, 0]), (Val(:good_broyden), Float32[2, 0]),
+                (Val(:good_broyden), Float32[2]),
+            ), compiled in (false, true)
+        u = zero(target)
+        sol = if compiled
+            Reactant.@jit two_steps(Reactant.to_rarray(u), Reactant.to_rarray(target), rule)
+        else
+            two_steps(u, target, rule)
+        end
+        @test Array(sol.u) == 2 .* target
+        @test Array(sol.resid) == zero(target)
+        @test sol.retcode == ReturnCode.Success
     end
 end

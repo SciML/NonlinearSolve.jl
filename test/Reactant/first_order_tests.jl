@@ -45,18 +45,18 @@ end
         return cache.u, cache.fu, cache.nsteps
     end
     for (limit, iterate, residual) in ((1, 1.5f0, 0.25f0), (0, 1.0f0, -1.0f0))
-        u = ones(Float32, 2)
+        u = Float32[1]
         results = (step_newton(u, Val(limit)), Reactant.@jit(step_newton(Reactant.to_rarray(u), Val(limit))))
         for (x, fx, nsteps) in results
-            @test Array(x) == fill(iterate, 2)
-            @test Array(fx) == fill(residual, 2)
+            @test Array(x) == [iterate]
+            @test Array(fx) == [residual]
             @test Int(nsteps) == limit
         end
     end
 end
 
 @testset "Failed initialization preserves the cache state" begin
-    f(u, p) = u .- 1
+    f(u, p) = u .- 2
     function jac(u, evaluations)
         evaluations .+= 1
         return Diagonal(one.(u))
@@ -74,14 +74,14 @@ end
             (NewtonRaphson(), 0), (NonlinearSolvePolyAlgorithm((NewtonRaphson(),)), 0),
             (SimpleNewtonRaphson(), nothing),
         )
-        u = Float32[2, 2]
+        u = Float32[3]
         results = (failed_init(u, alg), Reactant.@jit(failed_init(Reactant.to_rarray(u), alg)))
         for (x, fx, retcode, nsteps, evaluations) in results
-            @test Array(x) == Float32[2, 2]
-            @test Array(fx) == Float32[1, 1]
+            @test Array(x) == Float32[3]
+            @test Array(fx) == Float32[1]
             @test retcode == ReturnCode.InitialFailure
             @test (isnothing(nsteps) ? nothing : Int(nsteps)) === expected_steps
-            @test Array(evaluations) == Float32[0, 0]
+            @test Array(evaluations) == Float32[0]
         end
     end
 end
@@ -101,14 +101,21 @@ end
     end
 end
 
-@testset "Augmented trust-region right-hand side" begin
-    function augmented_rhs(Dp, λ)
-        return NonlinearSolveBase._more_augmented_qrhs!(similar(Dp, 4), Dp, λ, 2)
+@testset "Augmented trust-region right-hand sides" begin
+    function augmented_rhs(fu, Dp, λ)
+        m = length(fu)
+        rhs = similar(Dp, m + length(Dp))
+        qrhs = similar(rhs)
+        return NonlinearSolveBase._more_augmented_rhs!(rhs, fu),
+            NonlinearSolveBase._more_augmented_qrhs!(qrhs, Dp, λ, m)
     end
-    rhs = Reactant.@jit augmented_rhs(
-        Reactant.to_rarray(Float32[2, 4]), Reactant.ConcreteRNumber(4.0f0)
-    )
-    @test Array(rhs) == Float32[0, 0, 1, 2]
+    @testset for (fu, Dp) in ((Float32[3, 5], Float32[2, 4]), (Float32[3], Float32[2]))
+        rhs, qrhs = Reactant.@jit augmented_rhs(
+            Reactant.to_rarray(fu), Reactant.to_rarray(Dp), Reactant.ConcreteRNumber(4.0f0)
+        )
+        @test Array(rhs) == vcat(-fu, zero(Dp))
+        @test Array(qrhs) == vcat(zero(fu), Dp ./ 2)
+    end
 end
 
 struct ReturnIterate end
@@ -187,10 +194,10 @@ end
     end
 end
 
-function poly_tolerance_problem(u, target = 2.0f0; kwargs...)
+function poly_tolerance_problem(u, target = AuxiliaryTarget(2.0f0); kwargs...)
     aux = NonlinearProblem(
         NonlinearFunction((x, p) -> x .^ 2 .- p.value; jac = (x, p) -> Diagonal(2 .* x)),
-        one.(u), AuxiliaryTarget(target); maxiters = 1,
+        one.(u), target; maxiters = 1,
         termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
     )
     data = SciMLBase.OverrideInitData(aux, nothing, sol -> sol.u, nothing)
@@ -202,60 +209,89 @@ end
 
 @testset "Auxiliary initialization uses the caller's tolerances" begin
     poly = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
-    function tolerance_solve(u, target, abstol, reltol, ::Val{strict}, ::Val{cached}) where {strict, cached}
-        prob = strict ? poly_tolerance_problem(u, target; abstol = 0.4f0) : poly_tolerance_problem(u, target)
+    function tolerance_solve(u, ::Val{strict}, ::Val{cached}) where {strict, cached}
+        prob = strict ? poly_tolerance_problem(u; abstol = 0.4f0) : poly_tolerance_problem(u)
+        abstol = strict ? 0.01f0 : 0.4f0
         if cached
-            cache = init(prob, poly; abstol, reltol)
+            cache = init(prob, poly; abstol)
             mapped = copy(NonlinearSolveBase.get_u(cache))
             sol = solve!(cache)
             return sol.u, sol.resid, sol.retcode, mapped, map(c -> c.nsteps, cache.caches)
         end
-        sol = solve(prob, poly; abstol, reltol)
+        sol = solve(prob, poly; abstol)
         return sol.u, sol.resid, sol.retcode, nothing, nothing
     end
     u = zeros(Float32, 2)
-    @testset for (target, abstol, reltol, strict, mapped_value, aux_resid) in (
-                (2.0f0, 0.01f0, nothing, true, 1.5f0, 0.25f0),
-                (2.0f0, 0.4f0, nothing, false, 1.5f0, 0.25f0),
-                (1 + 2.0f0^-9, 1.0f-8, 1.0f-8, true, 1 + 2.0f0^-10, 2.0f0^-20),
-                (1.5f0, 0.1f0, 1.0f-8, false, 1.25f0, 0.0625f0),
-            ), cached in (true, false), compiled in (false, true)
-        p = fill(target, length(u))
+    @testset for strict in (true, false), cached in (true, false), compiled in (false, true)
         result = if compiled
-            Reactant.@jit tolerance_solve(Reactant.to_rarray(u), Reactant.to_rarray(p), abstol, reltol, Val(strict), Val(cached))
+            Reactant.@jit tolerance_solve(Reactant.to_rarray(u), Val(strict), Val(cached))
         else
-            tolerance_solve(u, p, abstol, reltol, Val(strict), Val(cached))
+            tolerance_solve(u, Val(strict), Val(cached))
         end
         x, fx, code, mapped, steps = result
-        @test Array(x) == fill(strict ? mapped_value : 4.0f0, 2)
+        @test Array(x) == fill(strict ? 1.5f0 : 4.0f0, 2)
         @test Array(fx) == Array(x) .- 4
         @test code == (strict ? ReturnCode.InitialFailure : ReturnCode.Success)
         if cached
-            @test Array(mapped) == fill(mapped_value, 2)
-            @test Array(mapped) .^ 2 .- p == fill(aux_resid, 2)
+            @test Array(mapped) == fill(1.5f0, 2)
             strict && @test Int.(steps) == (0, 0)
         end
     end
 end
 
-@testset "Initialized polyalgorithm tolerance accessors" begin
-    tolerances(cache) = (NonlinearSolveBase.get_abstol(cache), NonlinearSolveBase.get_reltol(cache))
-    function read_tolerances(u, target, abstol, reltol)
-        alg = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
-        cache = init(poly_tolerance_problem(u, target), alg; abstol, reltol)
-        before = tolerances(cache)
+@testset "One-shot auxiliary initialization with device tolerances" begin
+    function device_tolerance_solve(u, abstol, reltol)
+        prob = poly_tolerance_problem(u, AuxiliaryTarget(1.5f0))
+        poly = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
+        sol = solve(prob, poly; abstol, reltol)
+        return sol.u, sol.resid, sol.retcode
+    end
+    u = Reactant.to_rarray(Float32[0])
+    reltol = Reactant.ConcreteRNumber(1.0f-6)
+    run = Reactant.@compile device_tolerance_solve(u, Reactant.ConcreteRNumber(1.0f-5), reltol)
+    @testset for (abstol, expected, retcode) in (
+            (1.0f-5, 1.25f0, ReturnCode.InitialFailure), (0.1f0, 4.0f0, ReturnCode.Success),
+        )
+        x, fx, code = run(u, Reactant.ConcreteRNumber(abstol), reltol)
+        @test Array(x) == [expected]
+        @test Array(fx) == Array(x) .- 4
+        @test code == retcode
+    end
+end
+
+@testset "Default auxiliary solver honors the explicit initialization tolerance" begin
+    function default_aux_solve(u)
+        prob = poly_tolerance_problem(u, (; value = 2.0f0))
+        poly = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
+        cache = init(prob, poly; initializealg = SciMLBase.OverrideInit(; abstol = 0.01f0), abstol = 0.4f0)
+        mapped = copy(NonlinearSolveBase.get_u(cache))
         sol = solve!(cache)
-        return before, tolerances(cache), sol.retcode
+        return mapped, sol.u, sol.resid, sol.retcode, map(c -> c.nsteps, cache.caches)
+    end
+    u = Float32[0]
+    @testset for compiled in (false, true)
+        mapped, x, fx, code, steps = if compiled
+            Reactant.@jit default_aux_solve(Reactant.to_rarray(u))
+        else
+            default_aux_solve(u)
+        end
+        @test Array(mapped) == Float32[1.5]
+        @test Array(x) == Float32[1.5]
+        @test Array(fx) == Float32[-2.5]
+        @test code == ReturnCode.InitialFailure
+        @test Int.(steps) == (0, 0)
+    end
+end
+
+@testset "Initialized polyalgorithm tolerance accessors" begin
+    function read_tolerances(u)
+        alg = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
+        cache = init(poly_tolerance_problem(u), alg; abstol = 0.4f0, reltol = 0.2f0)
+        return NonlinearSolveBase.get_abstol(cache), NonlinearSolveBase.get_reltol(cache)
     end
     u = zeros(Float32, 2)
-    for (target, a, r) in ((2.0f0, 0.4f0, 0.2f0), (1.5f0, 0.1f0, 1.0f-6))
-        host = read_tolerances(u, target, a, r)
-        compiled = Reactant.@jit read_tolerances(Reactant.to_rarray(u), target, a, r)
-        for (before, after, code) in (host, compiled)
-            @test Float32.(before) == Float32.(after) == (a, r)
-            @test code == ReturnCode.Success
-        end
-    end
+    @test read_tolerances(u) == (0.4f0, 0.2f0)
+    @test Float32.(Reactant.@jit read_tolerances(Reactant.to_rarray(u))) == (0.4f0, 0.2f0)
 end
 
 @testset "Reuse an initialized polyalgorithm cache" begin
