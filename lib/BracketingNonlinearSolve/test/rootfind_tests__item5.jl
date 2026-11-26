@@ -30,7 +30,7 @@ end
 
 @testset "Anderson-Bjork keeps a few residual-only steps while the bracket lags" begin
     # A skewed monotone function with its root at 0.3: A&B steps reduce the residual more than
-    # twofold but less than 42 times without shrinking the bracket enough. They should not
+    # fourfold but less than 42 times without shrinking the bracket enough. They should not
     # fall back to bisection straight away.
     g(x, p) = (q = x - oftype(x, 0.3); q < 0 ? oftype(x, 0.001) * q : q * (1 + 10000q^4))
     @testset "$T" for (T, abstol) in ((Float32, 1.0f-6), (Float64, 1.0e-12))

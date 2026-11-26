@@ -159,7 +159,7 @@ function SciMLBase.__solve(
     # Each return from A&B to bisection halves the margin of the switching test, so that
     # borderline switches are rejected after unsuccessful A&B phases.
     margin = one(abs(y1) / (abs(y1) + abs(y2)))
-    MaxResidualSteps = 3 # Max consecutive AB steps kept by halving the residual alone
+    MaxResidualSteps = 3 # Max consecutive AB steps kept by a 4x residual reduction alone
     residualSteps = 0
     last = 0 # Endpoint set by the last evaluation: 1 = x1, -1 = x2, 0 = none
     # Last endpoints dropped on the left and on the right, valid once has_l / has_r are set
@@ -251,13 +251,13 @@ function SciMLBase.__solve(
             end
             # Fallback if AB fails to reduce the bracket width, unless it still shrinks the residual
             # more than 42 times (2^(1074/200) = 41.4: at this rate the residual underflows within
-            # 200 steps from |y| = 1), or at least halves it for no more than MaxResidualSteps
-            # consecutive steps
+            # 200 steps from |y| = 1), or shrinks it more than 4 times for no more than
+            # MaxResidualSteps consecutive steps
             if x2 - x1 > threshold
                 yMin = min(abs(yl), abs(yr)) # Best true residual of the bracket
                 if 42abs(y3) < yMin
                     # Fast residual progress: needs no cap
-                elseif residualSteps < MaxResidualSteps && 2abs(y3) < yMin
+                elseif residualSteps < MaxResidualSteps && 4abs(y3) < yMin
                     residualSteps += 1
                 else
                     bisecting = true   # reset to bisection
