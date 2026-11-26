@@ -255,9 +255,10 @@ function SciMLBase.__solve(
             # MaxResidualSteps consecutive steps
             if x2 - x1 > threshold
                 yMin = min(abs(yl), abs(yr)) # Best true residual of the bracket
-                if 42abs(y3) < yMin
+                a3 = abs(y3)
+                if 42a3 < yMin
                     # Fast residual progress: needs no cap
-                elseif residualSteps < MaxResidualSteps && 4abs(y3) < yMin
+                elseif residualSteps < MaxResidualSteps && 4a3 < yMin
                     residualSteps += 1
                 else
                     bisecting = true   # reset to bisection
