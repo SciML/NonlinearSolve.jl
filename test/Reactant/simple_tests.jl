@@ -137,3 +137,25 @@ end
         end
     end
 end
+
+@testset "Simple Broyden real and complex steps" begin
+    f(x, p) = x ./ 2 .- p
+    for alg in (SimpleBroyden(; alpha = 1.0f0), SimpleLimitedMemoryBroyden(; alpha = 1.0f0))
+        run(u, p) = solve(NonlinearProblem(f, u, p), alg; maxiters = 2)
+        for (u, p, expected) in (
+                (Float32[0], Float32[2], Float32[4]),
+                (ComplexF32[0, 0], ComplexF32[2im, 0], ComplexF32[4im, 0]),
+            )
+            @testset "$(typeof(alg)) $(eltype(u))" begin
+                for compiled in (false, true)
+                    sol = compiled ? Reactant.@jit(run(Reactant.to_rarray(u), Reactant.to_rarray(p))) : run(u, p)
+                    actual = Array(sol.u)
+                    @test actual == expected
+                    @test iszero(f(actual, p))
+                    @test iszero(Array(sol.resid))
+                    @test sol.retcode == ReturnCode.Success
+                end
+            end
+        end
+    end
+end

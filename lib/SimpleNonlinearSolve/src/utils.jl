@@ -29,6 +29,10 @@ function identity_jacobian(u::Number, fu::Number, α = true)
 end
 function identity_jacobian(u, fu, α = true)
     J = NLBUtils.safe_similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
+    if ReactantCore.within_compile()
+        J .= ifelse.(axes(J, 1) .== axes(J, 2)', α, zero(α))
+        return J
+    end
     fill!(J, false)
     if ArrayInterface.fast_scalar_indexing(J)
         @simd ivdep for i in axes(J, 1)

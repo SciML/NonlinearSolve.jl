@@ -99,7 +99,7 @@ function SciMLBase.__solve(
         ReactantCore.@trace track_numbers = false if !solved
             @bb J⁻¹δf = J⁻¹ × vec(δf)
             d = dot(δx, J⁻¹δf)
-            @bb xᵀJ⁻¹ = transpose(J⁻¹) × vec(δx)
+            @bb xᵀJ⁻¹ = transpose(J⁻¹) × vec(conj.(δx))
 
             @bb @. δJ⁻¹n = (δx - J⁻¹δf) / d
 
