@@ -38,20 +38,32 @@ end
     @test all(isnan, Array(compiled.resid))
 end
 
-@testset "Diagonal cubic Broyden exhausts plain-norm iterations" begin
+@testset "Diagonal cubic Broyden with plain-norm termination" begin
+    residual(x, y) = x .^ 3 .- y
     function run_cubic(u, p)
         return solve(
-            NonlinearProblem((x, y) -> x .^ 3 .- y, u, p), Broyden(; update_rule = Val(:diagonal));
+            NonlinearProblem(residual, u, p), Broyden(; update_rule = Val(:diagonal));
             maxiters = 50, abstol = 1.0f-5,
             termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
         )
     end
-    u, p = Float32[3, -2], Float32[2]
-    host = run_cubic(u, p)
-    compiled = Reactant.@jit run_cubic(Reactant.to_rarray(u), Reactant.to_rarray(p))
-    @test host.retcode == compiled.retcode == ReturnCode.MaxIters
-    @test isequal(Array(compiled.u), host.u)
-    @test isequal(Array(compiled.resid), host.resid)
+    u = Float32[3, -2]
+    @testset for (p, code) in ((Float32[2], ReturnCode.Success), (Float32[NaN], ReturnCode.MaxIters))
+        rp = Reactant.to_rarray(p)
+        host = run_cubic(u, p)
+        compiled = Reactant.@jit run_cubic(Reactant.to_rarray(u), rp)
+        @test host.retcode == compiled.retcode == code
+        @test isequal(Array(compiled.u), host.u)
+        @test isequal(host.resid, residual(host.u, p))
+        @test isequal(Array(compiled.resid), Array(Reactant.@jit residual(compiled.u, rp)))
+        if code == ReturnCode.Success
+            @test maximum(abs, host.resid) <= 1.0f-5
+            @test maximum(abs, Array(compiled.resid)) <= 1.0f-5
+        else
+            @test isequal(Array(compiled.resid), host.resid)
+            @test all(isnan, host.resid)
+        end
+    end
 end
 
 @testset "Combined norm stops on the absolute or relative threshold" begin

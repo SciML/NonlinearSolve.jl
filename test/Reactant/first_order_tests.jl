@@ -101,14 +101,21 @@ end
     end
 end
 
-@testset "Augmented trust-region right-hand side" begin
-    function augmented_rhs(Dp, λ)
-        return NonlinearSolveBase._more_augmented_qrhs!(similar(Dp, 4), Dp, λ, 2)
+@testset "Augmented trust-region right-hand sides" begin
+    function augmented_rhs(fu, Dp, λ)
+        m = length(fu)
+        rhs = similar(Dp, m + length(Dp))
+        qrhs = similar(rhs)
+        return NonlinearSolveBase._more_augmented_rhs!(rhs, fu),
+            NonlinearSolveBase._more_augmented_qrhs!(qrhs, Dp, λ, m)
     end
-    rhs = Reactant.@jit augmented_rhs(
-        Reactant.to_rarray(Float32[2, 4]), Reactant.ConcreteRNumber(4.0f0)
-    )
-    @test Array(rhs) == Float32[0, 0, 1, 2]
+    @testset for (fu, Dp) in ((Float32[3, 5], Float32[2, 4]), (Float32[3], Float32[2]))
+        rhs, qrhs = Reactant.@jit augmented_rhs(
+            Reactant.to_rarray(fu), Reactant.to_rarray(Dp), Reactant.ConcreteRNumber(4.0f0)
+        )
+        @test Array(rhs) == vcat(-fu, zero(Dp))
+        @test Array(qrhs) == vcat(zero(fu), Dp ./ 2)
+    end
 end
 
 struct ReturnIterate end
@@ -187,10 +194,10 @@ end
     end
 end
 
-function poly_tolerance_problem(u; kwargs...)
+function poly_tolerance_problem(u, target = AuxiliaryTarget(2.0f0); kwargs...)
     aux = NonlinearProblem(
         NonlinearFunction((x, p) -> x .^ 2 .- p.value; jac = (x, p) -> Diagonal(2 .* x)),
-        one.(u), AuxiliaryTarget(2.0f0); maxiters = 1,
+        one.(u), target; maxiters = 1,
         termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
     )
     data = SciMLBase.OverrideInitData(aux, nothing, sol -> sol.u, nothing)
@@ -229,6 +236,30 @@ end
             @test Array(mapped) == fill(1.5f0, 2)
             strict && @test Int.(steps) == (0, 0)
         end
+    end
+end
+
+@testset "Default auxiliary solver honors the explicit initialization tolerance" begin
+    function default_aux_solve(u)
+        prob = poly_tolerance_problem(u, (; value = 2.0f0))
+        poly = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
+        cache = init(prob, poly; initializealg = SciMLBase.OverrideInit(; abstol = 0.01f0), abstol = 0.4f0)
+        mapped = copy(NonlinearSolveBase.get_u(cache))
+        sol = solve!(cache)
+        return mapped, sol.u, sol.resid, sol.retcode, map(c -> c.nsteps, cache.caches)
+    end
+    u = Float32[0]
+    @testset for compiled in (false, true)
+        mapped, x, fx, code, steps = if compiled
+            Reactant.@jit default_aux_solve(Reactant.to_rarray(u))
+        else
+            default_aux_solve(u)
+        end
+        @test Array(mapped) == Float32[1.5]
+        @test Array(x) == Float32[1.5]
+        @test Array(fx) == Float32[-2.5]
+        @test code == ReturnCode.InitialFailure
+        @test Int.(steps) == (0, 0)
     end
 end
 

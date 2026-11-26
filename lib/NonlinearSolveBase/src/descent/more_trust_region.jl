@@ -1375,14 +1375,20 @@ end
 
 function _more_augmented_rhs!(rhs, fu)
     m = length(fu)
+    if ReactantCore.within_compile()
+        return copyto!(rhs, vcat(-Utils.safe_vec(fu), zero(similar(rhs, length(rhs) - m))))
+    end
     @views rhs[1:m] .= .-Utils.safe_vec(fu)
     fill!(@view(rhs[(m + 1):end]), zero(eltype(rhs)))
     return rhs
 end
 
 function _more_augmented_qrhs!(qrhs, Dp, λ, m)
-    fill!(@view(qrhs[1:m]), zero(eltype(qrhs)))
     sqrtλ = sqrt(λ)
+    if ReactantCore.within_compile()
+        return copyto!(qrhs, vcat(zero(similar(qrhs, m)), Dp ./ sqrtλ))
+    end
+    fill!(@view(qrhs[1:m]), zero(eltype(qrhs)))
     @views qrhs[(m + 1):end] .= Dp ./ sqrtλ
     return qrhs
 end

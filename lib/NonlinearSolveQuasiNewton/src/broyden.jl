@@ -160,8 +160,8 @@ function InternalAPI.solve!(
     @bb @. cache.dfu = fu - cache.dfu
     J⁻¹_diag = Utils.restructure(cache.dfu, diag(J⁻¹))
     if cache.rule isa GoodBroydenUpdateRule
-        @bb @. cache.J⁻¹dfu = J⁻¹_diag * cache.dfu * du
-        denom = sum(cache.J⁻¹dfu)
+        @bb @. cache.J⁻¹dfu = J⁻¹_diag * cache.dfu
+        denom = dot(du, cache.J⁻¹dfu)
         denom = ifelse(iszero(denom), T(1.0e-5), denom)
         @bb @. J⁻¹_diag += (du - cache.J⁻¹dfu) * du * J⁻¹_diag / denom
     else
