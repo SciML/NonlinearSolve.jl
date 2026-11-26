@@ -11,6 +11,24 @@ end
 
 alg = HomotopyContinuationJL{true}(; threading = false)
 
+@testset "positional constructor" begin
+    alg = HomotopyContinuationJL{true}(AutoForwardDiff(), (; threading = false))
+    @test alg isa HomotopyContinuationJL{true, Val{false}}
+
+    prob = NonlinearProblem((u, p) -> u * u - 1, 1.0)
+    sol = solve(prob, alg)
+    @test sol.converged
+    solutions = [s.u for s in sol.u]
+    sort!(solutions)
+    @test solutions[1] ≈ -1.0 atol = 1.0e-10
+    @test solutions[2] ≈ 1.0 atol = 1.0e-10
+
+    prob = NonlinearProblem((u, p) -> u * u + 1, 1.0)
+    sol = solve(prob, alg)
+    @test !sol.converged
+    @test sol.u[1].retcode == SciMLBase.ReturnCode.ConvergenceFailure
+end
+
 @testset "scalar u" begin
     rhs = function (u, p)
         return u * u - p[1] * u + p[2]
