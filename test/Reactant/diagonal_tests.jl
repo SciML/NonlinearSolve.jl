@@ -64,8 +64,9 @@ end
             @test Array(result) == (diagonal ? diag(expected) : expected)
         end
     end
-    @testset "One-dimensional inverse secant" for diagonal in (true, false), compiled in (false, true)
-        dfu, du = Float32[1], Float32[2]
+    @testset "One-dimensional inverse secant" for (dfu, du) in (
+                (Float32[1], Float32[2]), (ComplexF32[im], ComplexF32[2im]),
+            ), diagonal in (true, false), compiled in (false, true)
         rule = Broyden().update_rule
         result = if compiled
             Reactant.@jit update(Reactant.to_rarray(dfu), Reactant.to_rarray(du), rule, Val(diagonal))
@@ -83,7 +84,7 @@ end
     end
     @testset for (rule, target) in (
                 (Val(:diagonal), Float32[2, 0]), (Val(:good_broyden), Float32[2, 0]),
-                (Val(:good_broyden), Float32[2]),
+                (Val(:good_broyden), Float32[2]), (Val(:diagonal), ComplexF32[2im]),
             ), compiled in (false, true)
         u = zero(target)
         sol = if compiled
@@ -92,6 +93,7 @@ end
             two_steps(u, target, rule)
         end
         @test Array(sol.u) == 2 .* target
+        @test Array(sol.u) ./ 2 .- target == zero(target)
         @test Array(sol.resid) == zero(target)
         @test sol.retcode == ReturnCode.Success
     end
