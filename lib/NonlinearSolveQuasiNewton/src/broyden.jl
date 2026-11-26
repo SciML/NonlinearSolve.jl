@@ -141,7 +141,7 @@ function InternalAPI.solve!(
         right = conj(du) * J⁻¹
         denom = dot(du, J⁻¹dfu)
     else
-        right = dfu
+        right = conj(dfu)
         denom = cache.internalnorm(dfu)^2
     end
     denom = ifelse(iszero(denom), eltype(u)(1.0e-5), denom)
@@ -172,7 +172,14 @@ function InternalAPI.solve!(
     end
     denom = ifelse(iszero(denom), T(1.0e-5), denom)
     @bb @. cache.du_cache = (du - cache.J⁻¹dfu) / denom
-    @bb J⁻¹ += vec(cache.du_cache) × rmul
+    if J⁻¹ isa Matrix{<:Complex} && eltype(du) <: Complex &&
+            cache.du_cache isa Array && parent(rmul) isa Vector
+        for j in axes(J⁻¹, 2), i in axes(J⁻¹, 1)
+            J⁻¹[i, j] += cache.du_cache[i] * rmul[j]
+        end
+    else
+        @bb J⁻¹ += vec(cache.du_cache) × rmul
+    end
     @bb copyto!(cache.dfu, fu)
     return J⁻¹
 end
