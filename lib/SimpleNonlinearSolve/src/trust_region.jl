@@ -15,8 +15,9 @@ scalar and static array problems.
   - `autodiff`: determines the backend used for the Jacobian. Defaults to `nothing` (i.e.
     automatic backend selection). Valid choices include jacobian backends from
     `DifferentiationInterface.jl`.
-  - `max_trust_radius`: the maximum radius of the trust region. Defaults to
-    `max(norm(f(u0)), maximum(u0) - minimum(u0))`.
+  - `max_trust_radius`: an explicit cap on trust region radius growth. With the default
+    value `0`, the standard rule uses `max(norm(f(u0)), maximum(u0) - minimum(u0))`
+    as its cap, and the alternate rule grows the radius adaptively.
   - `initial_trust_radius`: the initial trust region radius. Defaults to
     `max_trust_radius / 11`.
   - `step_threshold`: the threshold for taking a step. In every iteration, the threshold is
@@ -111,8 +112,11 @@ function SciMLBase.__solve(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
-    # Set default trust region radius if not specified by user.
-    iszero(Δₘₐₓ) && (Δₘₐₓ = max(L2_NORM(fx), maximum(x) - minimum(x)))
+    # The automatic cap applies only to the standard update rule.
+    if iszero(Δₘₐₓ)
+        Δₘₐₓ = NLBUtils.unwrap_val(alg.nlsolve_update_rule) ?
+            T(Inf) : max(norm_fx, maximum(x) - minimum(x))
+    end
     if iszero(Δ)
         if NLBUtils.unwrap_val(alg.nlsolve_update_rule)
             norm_x = L2_NORM(x)
@@ -131,8 +135,7 @@ function SciMLBase.__solve(
     @bb δN_δsd = copy(x)
     @bb δN = copy(x)
     @bb Hδ = copy(x)
-    @bb Jg = copy(NLBUtils.safe_vec(fx))
-    dogleg_cache = (; δsd, δN_δsd, δN, Jg)
+    dogleg_cache = (; δsd, δN_δsd, δN)
 
     solved, retcode, fx_sol, x_sol = Utils.check_termination(
         tc_cache, fx, x, xo, prob
@@ -200,7 +203,7 @@ function SciMLBase.__solve(
 end
 
 function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
-    (; δsd, δN_δsd, δN, Jg) = cache
+    (; δsd, δN_δsd, δN) = cache
 
     # Compute the Newton step
     @bb δN .= NLBUtils.restructure(δN, J \ NLBUtils.safe_vec(f))
@@ -209,9 +212,8 @@ function dogleg_method!!(cache, J, f::F, g, Δ) where {F}
     (L2_NORM(δN) ≤ Δ) && return δN
 
     # Calculate Cauchy point, optimum along the steepest descent direction
-    @bb Jg = J × NLBUtils.safe_vec(g)
-    cauchy_scale = (L2_NORM(g) / L2_NORM(Jg))^2
-    @bb @. δsd = -cauchy_scale * g
+    @bb δsd .= g
+    @bb @. δsd *= -1
     norm_δsd = L2_NORM(δsd)
 
     if (norm_δsd ≥ Δ)

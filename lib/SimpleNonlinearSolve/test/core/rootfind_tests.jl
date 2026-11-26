@@ -3,3 +3,4 @@
 @safetestset "Derivative Free Methods" include("rootfind_tests__item3.jl")
 @safetestset "Newton Fails" include("rootfind_tests__item4.jl")
 @safetestset "Kwargs Propagation" include("rootfind_tests__item5.jl")
+@safetestset "Trust-region radius updates" include("rootfind_tests__item6.jl")
