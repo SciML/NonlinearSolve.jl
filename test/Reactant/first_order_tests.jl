@@ -239,6 +239,26 @@ end
     end
 end
 
+@testset "One-shot auxiliary initialization with device tolerances" begin
+    function device_tolerance_solve(u, abstol, reltol)
+        prob = poly_tolerance_problem(u, AuxiliaryTarget(1.5f0))
+        poly = NonlinearSolvePolyAlgorithm((NewtonRaphson(), NewtonRaphson()))
+        sol = solve(prob, poly; abstol, reltol)
+        return sol.u, sol.resid, sol.retcode
+    end
+    u = Reactant.to_rarray(Float32[0])
+    reltol = Reactant.ConcreteRNumber(1.0f-6)
+    run = Reactant.@compile device_tolerance_solve(u, Reactant.ConcreteRNumber(1.0f-5), reltol)
+    @testset for (abstol, expected, retcode) in (
+            (1.0f-5, 1.25f0, ReturnCode.InitialFailure), (0.1f0, 4.0f0, ReturnCode.Success),
+        )
+        x, fx, code = run(u, Reactant.ConcreteRNumber(abstol), reltol)
+        @test Array(x) == [expected]
+        @test Array(fx) == Array(x) .- 4
+        @test code == retcode
+    end
+end
+
 @testset "Default auxiliary solver honors the explicit initialization tolerance" begin
     function default_aux_solve(u)
         prob = poly_tolerance_problem(u, (; value = 2.0f0))

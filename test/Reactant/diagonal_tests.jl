@@ -1,4 +1,4 @@
-using LinearAlgebra: diagm
+using LinearAlgebra: Diagonal, diag, diagm, dot
 using NonlinearSolve
 using Reactant
 using Test
@@ -54,11 +54,15 @@ end
         rule = Broyden(; update_rule = Val(good ? :good_broyden : :bad_broyden)).update_rule
         dfu = good || !singular ? Float32[1, 0] : Float32[0, 0]
         du = good && singular ? Float32[0, -4] : Float32[2, -4]
-        denom = singular ? 1.0f-5 : good ? 2.0f0 : 1.0f0
-        right = good ? du : dfu
-        expected = diagm(one.(du)) + ((du .- dfu) ./ denom) * right'
-        result = Reactant.@jit update(Reactant.to_rarray(dfu), Reactant.to_rarray(du), rule, Val(diagonal))
-        @test Array(result) == (diagonal ? diag(expected) : expected)
+        H = diagm(one.(du))
+        denom = good ? dot(du, H * dfu) : dot(dfu, dfu)
+        right = good ? du' * H : dfu'
+        expected = H + (du - H * dfu) * right / (iszero(denom) ? 1.0f-5 : denom)
+        host = update(dfu, du, rule, Val(diagonal))
+        compiled = Reactant.@jit update(Reactant.to_rarray(dfu), Reactant.to_rarray(du), rule, Val(diagonal))
+        for result in (host, compiled)
+            @test Array(result) == (diagonal ? diag(expected) : expected)
+        end
     end
     @testset "One-dimensional inverse secant" for diagonal in (true, false), compiled in (false, true)
         dfu, du = Float32[1], Float32[2]
