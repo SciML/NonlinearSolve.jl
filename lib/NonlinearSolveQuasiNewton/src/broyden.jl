@@ -139,7 +139,8 @@ function InternalAPI.solve!(
     @bb @. cache.dfu = fu - cache.dfu
     @bb cache.J⁻¹dfu = J⁻¹ × vec(cache.dfu)
     if cache.rule isa GoodBroydenUpdateRule
-        @bb cache.u_cache = transpose(J⁻¹) × vec(du)
+        # Transposing this column gives the right factor du' * J⁻¹.
+        @bb cache.u_cache = transpose(J⁻¹) × vec(conj(du))
         denom = dot(du, cache.J⁻¹dfu)
         rmul = transpose(Utils.safe_vec(cache.u_cache))
     else
@@ -163,7 +164,7 @@ function InternalAPI.solve!(
         @bb @. cache.J⁻¹dfu = J⁻¹_diag * cache.dfu
         denom = dot(du, cache.J⁻¹dfu)
         denom = ifelse(iszero(denom), T(1.0e-5), denom)
-        @bb @. J⁻¹_diag += (du - cache.J⁻¹dfu) * du * J⁻¹_diag / denom
+        @bb @. J⁻¹_diag += (du - cache.J⁻¹dfu) * conj(du) * J⁻¹_diag / denom
     else
         denom = cache.internalnorm(cache.dfu)^2
         denom = ifelse(iszero(denom), T(1.0e-5), denom)
