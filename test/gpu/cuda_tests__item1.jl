@@ -3,6 +3,20 @@ using NonlinearSolve
 using CUDA, NonlinearSolve, LinearSolve, StableRNGs, ADTypes
 using LinearAlgebra: norm
 
+# Empty stderr, or exactly one deprecation warning for `GPUCompiler.compile_hook` with its
+# `likely near` footer
+const COMPILE_HOOK_DEPWARN = r"\AWARNING: Use of GPUCompiler\.compile_hook is deprecated[^\n]*\n(?:  likely near [^\n]*\n)?\z"
+only_compile_hook_warning(s) = isempty(s) || occursin(COMPILE_HOOK_DEPWARN, s)
+
+@testset "compile_hook warning matcher" begin
+    w = "WARNING: Use of GPUCompiler.compile_hook is deprecated, use X instead.\n  likely near C:\\a\\b.jl:12\n"
+    @test only_compile_hook_warning(w)
+    @test only_compile_hook_warning("")
+    @test !only_compile_hook_warning(w * w)
+    @test !only_compile_hook_warning(w * "  unrelated indented diagnostic\n")
+    @test !only_compile_hook_warning("┌ Warning: something else\n" * w)
+end
+
 if CUDA.functional()
     CUDA.allowscalar(false)
 
@@ -36,10 +50,8 @@ if CUDA.functional()
     # reads the deprecated binding `GPUCompiler.compile_hook` and the resulting warning is
     # printed only once, so trigger it here rather than in the first `@test_nowarn` below.
     # The first solve may print that one deprecation (a `WARNING: Use of ...` line and its
-    # indented `likely near ...` lines) and nothing else. This solve can be removed once
+    # `likely near ...` footer) and nothing else. This solve can be removed once
     # CUDA 6.5 resolves in this environment.
-    compile_hook_depwarn = r"WARNING: Use of GPUCompiler\.compile_hook is deprecated[^\n]*\n(?:[ \t]+[^\n]*\n)*"
-    only_compile_hook_warning(s) = isempty(replace(s, compile_hook_depwarn => ""))
     @test_warn only_compile_hook_warning solve(
         prob, first(SOLVERS); abstol = 1.0f-5, reltol = 1.0f-5
     )

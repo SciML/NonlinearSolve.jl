@@ -77,9 +77,9 @@ function SciMLBase.__solve(
 
         # A small residual hands over to bisection, which refines the bracket in x. The
         # bracket is updated first, so that it still encloses the root (the residual can be
-        # small far from the root when `f` is scaled). The residual test uses the value of
-        # `abstol` in the units of `f`.
-        abs(fm) < abstol * (oneunit(abs(fm)) / oneunit(abstol)) && break
+        # small far from the root when `f` is scaled). The residual test uses `abstol`
+        # expressed in the units of `f`.
+        abs(fm) < Impl.residual_tolerance(abstol, fm) && break
 
         i += 1
     end

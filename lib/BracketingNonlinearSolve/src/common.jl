@@ -13,6 +13,19 @@ function ulp(x)
     return isfinite(z) ? z - y : y - prevfloat(y)
 end
 
+# `abstol`, a tolerance in the units of x, as a tolerance on the residual `fx`. A tolerance
+# in commensurate units (e.g. m and km with Unitful) is converted, so it keeps its physical
+# size. Otherwise (e.g. x in m and f in N) its value is given the units of `fx`. The types
+# of DynamicQuantities values do not carry units, so their value is always transferred;
+# they are stored in SI units, so that keeps the physical size of a commensurate tolerance.
+function residual_tolerance(abstol, fx)
+    T = typeof(abs(fx))
+    if typeof(abstol) !== T && isconcretetype(promote_type(typeof(abstol), T))
+        return convert(T, abstol)
+    end
+    return abstol * (oneunit(abs(fx)) / oneunit(abstol))
+end
+
 # Sign tests against `zero(x)`, so that `x` may carry units
 isnegative(x) = x < zero(x)
 ispositive(x) = x > zero(x)

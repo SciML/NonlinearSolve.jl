@@ -27,3 +27,16 @@ sol = solve(prob, ModAB(); abstol = 0.0, reltol = 0.0)
     @test count(>(0), xs) > 1 # The right end of the bracket moves
     @test length(xs) ≤ 100
 end
+
+@testset "Anderson-Bjork keeps a few residual-only steps while the bracket lags" begin
+    # A skewed monotone function with its root at 0.3: A&B steps reduce the residual more than
+    # twofold but less than 42 times without shrinking the bracket enough. They should not
+    # fall back to bisection straight away.
+    g(x, p) = (q = x - oftype(x, 0.3); q < 0 ? oftype(x, 0.001) * q : q * (1 + 10000q^4))
+    @testset "$T" for (T, abstol) in ((Float32, 1.0f-6), (Float64, 1.0e-12))
+        sol = solve(IntervalNonlinearProblem(g, (zero(T), one(T))), ModAB(); maxiters = 20, abstol)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.left ≤ T(0.3) ≤ sol.right
+        @test abs(sol.u - T(0.3)) ≤ abstol
+    end
+end

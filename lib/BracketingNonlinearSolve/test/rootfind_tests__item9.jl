@@ -80,4 +80,15 @@ end
     sol = solve(IntervalNonlinearProblem((x, p) -> DQ.ustrip(x) - 0.3, tspan), ModAB(); abstol = 0.0)
     @test SciMLBase.successful_retcode(sol)
     @test sol.u ≈ 0.3 * DQ.u"s"
+
+    # Mixed-precision DynamicQuantities bracket: the default tolerance follows the promoted
+    # type (Float64), not the Float32 left endpoint
+    tspan = (DQ.Quantity(0.0f0; time = 1), 2.0 * DQ.u"s")
+    f = (x, p) -> x^2 - 2.0 * DQ.u"s^2"
+    for alg in (Bisection(), Falsi(), Brent(), ModAB())
+        sol = solve(IntervalNonlinearProblem(f, tspan), alg)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.left ≤ sqrt(2.0) * DQ.u"s" ≤ sol.right
+        @test sol.right - sol.left < 2 * eps(Float64)^0.8 * DQ.u"s"
+    end
 end

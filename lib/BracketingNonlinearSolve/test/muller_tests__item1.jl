@@ -1,4 +1,4 @@
-using BracketingNonlinearSolve
+using BracketingNonlinearSolve, Unitful
 
 f(u, p) = u^2 - p
 g(u, p) = sin(u)
@@ -93,4 +93,25 @@ end
     sol = solve(prob, Muller(0.0))
 
     @test sol.u ≈ (-1 + √3 * im) / 2
+end
+
+@testset "Residual tolerance in commensurate units" begin
+    # The residual stops on `abstol`, which has the units of x. A residual in km must be
+    # compared with 1e-8 m, not with 1e-8 km.
+    abstol = 1.0e-8u"m"
+    sols = map((u"m", u"km")) do res_unit
+        f = (x, p) -> uconvert(res_unit, 1.0e-5 * ((x / 1u"m")^3 - 2) * u"m")
+        sol = solve(IntervalNonlinearProblem{false}(f, (0.0u"m", 2.0u"m")), Muller(); abstol)
+        @test SciMLBase.successful_retcode(sol)
+        @test abs(sol.resid) ≤ abstol
+        # |f'| ≈ 4.8e-5 at the root, so a residual below 1e-8 m puts x within ~2e-4 m of it
+        @test sol.u ≈ cbrt(2) * u"m" atol = 3.0e-4u"m"
+        sol
+    end
+    @test sols[1].u ≈ sols[2].u # The units of the residual do not change the iterates
+    # Incommensurate units: the value of `abstol` is used in the units of `f`
+    f = (x, p) -> ((x / 1u"m")^3 - 2) * u"N"
+    sol = solve(IntervalNonlinearProblem{false}(f, (0.0u"m", 2.0u"m")), Muller(); abstol)
+    @test SciMLBase.successful_retcode(sol)
+    @test abs(sol.resid) ≤ 1.0e-8u"N"
 end
