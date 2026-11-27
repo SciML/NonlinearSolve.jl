@@ -11,3 +11,32 @@ sol = solve(prob, ModAB(); abstol = 0.0, reltol = 0.0)
 @test sol.retcode == ReturnCode.FloatingPointLimit
 @test sol.left == -0.9726263117443217
 @test sol.right == -0.9726263117443216
+
+@testset "Anderson-Bjork halves the residual without shrinking the bracket" begin
+    # Every Anderson-Bjork step lands left of the root and halves the residual. Without a
+    # limit on residual-only progress the right end never moves and `-x * x` underflows to
+    # an exact zero instead of the bracket closing on the root.
+    xs = Float64[]
+    f = (x, _) -> (push!(xs, x); x < 0 ? -x * x : 7 * x * x)
+    abstol = 1.0e-12
+    sol = solve(IntervalNonlinearProblem(f, (-Float64(π), 1.0)), ModAB(); abstol)
+
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.left < 0 < sol.right # A real bracket, not an underflowed exact zero
+    @test sol.right - sol.left < 2abstol
+    @test count(>(0), xs) > 1 # The right end of the bracket moves
+    @test length(xs) ≤ 100
+end
+
+@testset "Anderson-Bjork keeps a few residual-only steps while the bracket lags" begin
+    # A skewed monotone function with its root at 0.3: A&B steps reduce the residual more than
+    # fourfold but less than 42 times without shrinking the bracket enough. They should not
+    # fall back to bisection straight away.
+    g(x, p) = (q = x - oftype(x, 0.3); q < 0 ? oftype(x, 0.001) * q : q * (1 + 10000q^4))
+    @testset "$T" for (T, abstol) in ((Float32, 1.0f-6), (Float64, 1.0e-12))
+        sol = solve(IntervalNonlinearProblem(g, (zero(T), one(T))), ModAB(); maxiters = 20, abstol)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.left ≤ T(0.3) ≤ sol.right
+        @test abs(sol.u - T(0.3)) ≤ abstol
+    end
+end

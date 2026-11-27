@@ -1,6 +1,7 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 BracketingNonlinearSolve = "70df07ce-3d50-431d-a3e7-ca6ddb60ac1e"
+DynamicQuantities = "06fc5a27-2a28-4c7c-a15d-362465fb6821"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
@@ -12,6 +13,7 @@ NonlinearSolveBase = {path = "../../../NonlinearSolveBase"}
 [compat]
 Aqua = "0.8.9"
 BracketingNonlinearSolve = "1.12"
+DynamicQuantities = "1"
 ForwardDiff = "0.10.36, 1"
 NonlinearSolveBase = "2.1"
 SciMLTesting = "2.8"

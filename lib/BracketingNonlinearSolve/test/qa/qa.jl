@@ -1,5 +1,6 @@
 using SciMLTesting, BracketingNonlinearSolve, Test
 import ForwardDiff
+import DynamicQuantities
 
 
 const BRACKETING_EXTERNAL_REEXPORTS = union(
@@ -22,8 +23,10 @@ run_qa(
         # Still non-public in their owning packages. __solve dropped: now public in
         # SciMLBase.
         #   ForwardDiff (ChainRulesCore/ForwardDiff ext): partials, value
+        #   BracketingNonlinearSolve (own internals, extended by the ForwardDiff and
+        #     DynamicQuantities exts): residual_ratio, Impl, residual_tolerance
         all_qualified_accesses_are_public = (;
-            ignore = (:partials, :value),
+            ignore = (:partials, :value, :residual_ratio, :Impl, :residual_tolerance),
         ),
         # Still non-public in their owning packages. @SciMLMessage / AbstractVerbosityPreset
         # dropped: now imported directly from their owner SciMLLogging (public there).

@@ -2,6 +2,13 @@
     Falsi()
 
 A non-allocating regula falsi method.
+
+`abstol` is a tolerance on the bracket width in the units of `x`. It is also used as a
+criterion to hand over to bisection: once `abs(f(x)) < abstol`, the regula falsi steps stop
+and bisection refines the bracket until its half-width is below `abstol`, so a small
+residual alone never ends the solve. For that residual test, `abstol` is used as is when it
+compares directly with the residual (plain numbers, or commensurate units such as m and
+km), and otherwise its numeric value is used in the units of `f` (see [`Muller`](@ref)).
 """
 struct Falsi <: AbstractBracketingAlgorithm end
 
@@ -69,16 +76,17 @@ function SciMLBase.__solve(
             return build_bracketing_solution(prob, alg, mid, fm, left, right, ReturnCode.Success)
         end
 
-        if abs(fm) < abstol
-            right = mid
-            break
-        end
-
         if sign(fl) == sign(fm)
             fl, left = fm, mid
         else
             fr, right = fm, mid
         end
+
+        # A small residual hands over to bisection, which refines the bracket in x. The
+        # bracket is updated first, so that it still encloses the root (the residual can be
+        # small far from the root when `f` is scaled). The residual test uses `abstol`
+        # expressed in the units of `f`.
+        abs(fm) < Impl.residual_tolerance(abstol, fm) && break
 
         i += 1
     end
