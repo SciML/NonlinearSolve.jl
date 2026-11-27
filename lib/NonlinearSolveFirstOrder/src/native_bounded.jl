@@ -102,14 +102,15 @@ function SciMLBase.__init(
     fu = Utils.evaluate_f(prob, u)
     stats.nf += 1
     eltype(fu) <: Real || throw(ArgumentError("Native bounded methods require real residuals."))
-    ad = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
+    ad_selection_prob = typeof(u) === typeof(prob.u0) ? prob : SciMLBase.remake(prob; u0 = u)
+    ad = NonlinearSolveBase.select_jacobian_autodiff(ad_selection_prob, alg.autodiff)
     @set! alg.autodiff = ad
     finite_difference = _box_dense_ad(ad) isa ADTypes.AutoFiniteDiff
     @set! alg.jvp_autodiff = NonlinearSolveBase.select_forward_mode_autodiff(
-        prob, alg.jvp_autodiff === nothing && ADTypes.mode(ad) isa Union{ADTypes.ForwardMode, ADTypes.ForwardOrReverseMode} ? ad : alg.jvp_autodiff
+        ad_selection_prob, alg.jvp_autodiff === nothing && ADTypes.mode(ad) isa Union{ADTypes.ForwardMode, ADTypes.ForwardOrReverseMode} ? ad : alg.jvp_autodiff
     )
     @set! alg.vjp_autodiff = NonlinearSolveBase.select_reverse_mode_autodiff(
-        prob, alg.vjp_autodiff === nothing && (finite_difference || ADTypes.mode(ad) isa Union{ADTypes.ReverseMode, ADTypes.ForwardOrReverseMode}) ? ad : alg.vjp_autodiff
+        ad_selection_prob, alg.vjp_autodiff === nothing && (finite_difference || ADTypes.mode(ad) isa Union{ADTypes.ReverseMode, ADTypes.ForwardOrReverseMode}) ? ad : alg.vjp_autodiff
     )
     concrete = _box_concrete_jacobian(alg, alg.linsolve)
     T = eltype(u)

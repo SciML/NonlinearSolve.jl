@@ -21,8 +21,9 @@ Construct a cache for the Jacobian of `f` w.r.t. `u`.
 ### Keyword Arguments
 
   - `autodiff`: Automatic Differentiation or Finite Differencing backend for computing the
-    jacobian. By default, selects a backend based on sparsity parameters, type of state,
-    function properties, etc.
+    Jacobian. `nothing` selects a compatible backend using the working state `u`, with
+    finite differences for arrays without fast scalar indexing. An explicit backend is
+    used even when the state does not support fast scalar indexing.
   - `vjp_autodiff`: Automatic Differentiation or Finite Differencing backend for computing
     the vector-Jacobian product.
   - `jvp_autodiff`: Automatic Differentiation or Finite Differencing backend for computing
@@ -49,12 +50,7 @@ function construct_jacobian_cache(
     fu_cache = Utils.safe_similar(fu)
 
     if op_jac === nothing && !has_analytic_jac && needs_jac
-        if autodiff === nothing
-            throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
-                                 specified and cannot be `nothing`. Use \
-                                 `NonlinearSolveBase.select_jacobian_autodiff` for \
-                                 automatic backend selection."))
-        end
+        autodiff === nothing && (autodiff = _select_jacobian_autodiff(prob, u))
         autodiff = standardize_forwarddiff_tag(autodiff, prob)
         autodiff = construct_concrete_adtype(f, autodiff)
         # Enzyme cannot differentiate through FunctionWrappers' llvmcall, and AD-based
@@ -137,12 +133,7 @@ function construct_jacobian_cache(
     if SciMLBase.has_jac(f) || SciMLBase.has_vjp(f) || SciMLBase.has_jvp(f)
         return JacobianCache(fu, fu, f, fu, p, stats, autodiff, nothing)
     end
-    if autodiff === nothing
-        throw(ArgumentError("`autodiff` argument to `construct_jacobian_cache` must be \
-                             specified and cannot be `nothing`. Use \
-                             `NonlinearSolveBase.select_jacobian_autodiff` for \
-                             automatic backend selection."))
-    end
+    autodiff === nothing && (autodiff = _select_jacobian_autodiff(prob, u))
     @assert !(autodiff isa AutoSparse) "`autodiff` cannot be `AutoSparse` for scalar \
                                         nonlinear problems."
     di_extras = DI.prepare_derivative(f, autodiff, u, Constant(prob.p))

@@ -175,17 +175,22 @@ function SciMLBase.__init(
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = kwargs[:alias_u0])
     end
     alias_u0 = alias.alias_u0
-    @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(prob, alg.autodiff)
+    u = Utils.maybe_unaliased(prob.u0, alias_u0)
+    ad_selection_prob = typeof(u) === typeof(prob.u0) ? prob : SciMLBase.remake(prob; u0 = u)
+    provided_autodiff = alg.autodiff !== nothing
+    @set! alg.autodiff = NonlinearSolveBase.select_jacobian_autodiff(ad_selection_prob, alg.autodiff)
     provided_jvp_autodiff = alg.jvp_autodiff !== nothing
-    @set! alg.jvp_autodiff = if !provided_jvp_autodiff && alg.autodiff !== nothing &&
+    # The default Jacobian backend can be narrowed to finite differencing for states that
+    # cannot be scalar-indexed, which JVPs do not need, so they get their own default.
+    @set! alg.jvp_autodiff = if !provided_jvp_autodiff && provided_autodiff &&
             (
             ADTypes.mode(alg.autodiff) isa ADTypes.ForwardMode ||
                 ADTypes.mode(alg.autodiff) isa
                 ADTypes.ForwardOrReverseMode
         )
-        NonlinearSolveBase.select_forward_mode_autodiff(prob, alg.autodiff)
+        NonlinearSolveBase.select_forward_mode_autodiff(ad_selection_prob, alg.autodiff)
     else
-        NonlinearSolveBase.select_forward_mode_autodiff(prob, alg.jvp_autodiff)
+        NonlinearSolveBase.select_forward_mode_autodiff(ad_selection_prob, alg.jvp_autodiff)
     end
     provided_vjp_autodiff = alg.vjp_autodiff !== nothing
     @set! alg.vjp_autodiff = if !provided_vjp_autodiff && alg.autodiff !== nothing &&
@@ -195,9 +200,9 @@ function SciMLBase.__init(
                 ADTypes.mode(alg.autodiff) isa
                 ADTypes.ForwardOrReverseMode
         )
-        NonlinearSolveBase.select_reverse_mode_autodiff(prob, alg.autodiff)
+        NonlinearSolveBase.select_reverse_mode_autodiff(ad_selection_prob, alg.autodiff)
     else
-        NonlinearSolveBase.select_reverse_mode_autodiff(prob, alg.vjp_autodiff)
+        NonlinearSolveBase.select_reverse_mode_autodiff(ad_selection_prob, alg.vjp_autodiff)
     end
 
     if verbose isa Bool
@@ -218,7 +223,6 @@ function SciMLBase.__init(
 
     timer = get_timer_output()
     @static_timeit timer "cache construction" begin
-        u = Utils.maybe_unaliased(prob.u0, alias_u0)
         _validate_native_bounds(prob, alg, u)
         fu = Utils.evaluate_f(prob, u)
         @bb u_cache = copy(u)
