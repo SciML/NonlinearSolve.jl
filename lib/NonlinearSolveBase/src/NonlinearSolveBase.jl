@@ -126,7 +126,8 @@ include("forward_diff.jl")
 @compat(
     public,
     (
-        InternalAPI, supports_line_search, supports_trust_region, set_du!,
+        InternalAPI, supports_line_search, supports_trust_region,
+        supports_trust_region_scaling, set_du!,
         AbstractDescentDirection,
     )
 )
