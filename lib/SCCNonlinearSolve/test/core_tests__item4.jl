@@ -123,3 +123,47 @@ if VERSION >= v"1.11"
     stats = @timed solve(sccprob, scc_alg)
     @test stats.compile_time == 0.0
 end
+
+@testset "Forwarding to an explicit FunctionWrapper" begin
+    forwarded_probs = [
+        NonlinearProblem(nf1, zeros(2), zeros(3)),
+        NonlinearProblem(nf2, zeros(3), zeros(3)),
+    ]
+    forward_calls = Ref(0)
+    function forward(p, sols)
+        forward_calls[] += 1
+        return ef2_wrapped(p, sols)
+    end
+    forwarded = SciMLBase.SCCNonlinearProblem(forwarded_probs, Any[explicitfun1_raw, forward])
+    sol = solve(forwarded, scc_alg_debug)
+    @test SciMLBase.successful_retcode(sol)
+    @test forward_calls[] == 1
+    @test forwarded_probs[2].p[1] == sol.original[1].u[1]
+    @test sol.u ≈ ref_sol.u atol = 1.0e-10
+    @test isconcretetype(eltype(sol.original))
+end
+
+struct SCCWrappedRetcode
+    code::SciMLBase.ReturnCode.T
+end
+
+Base.convert(::Type{SciMLBase.ReturnCode.T}, retcode::SCCWrappedRetcode) = retcode.code
+
+struct SCCWrappedRetcodeAlgorithm <: SciMLBase.AbstractNonlinearAlgorithm end
+
+function SciMLBase.solve(prob::NonlinearProblem, ::SCCWrappedRetcodeAlgorithm; kwargs...)
+    sol = solve(prob, NewtonRaphson(; autodiff = AutoFiniteDiff()); kwargs...)
+    retcode = length(prob.u0) == 2 ? SCCWrappedRetcode(sol.retcode) : sol.retcode
+    return SciMLBase.build_solution(prob, nothing, sol.u, sol.resid; retcode)
+end
+
+@testset "Different subsolution return-code types" begin
+    alg = SCCNonlinearSolve.SCCAlg(; nlalg = SCCWrappedRetcodeAlgorithm(), store_original = Val(true))
+    prob = SciMLBase.SCCNonlinearProblem(probs, [explicitfun1_raw, explicitfun2_raw])
+    sol = solve(prob, alg)
+    @test SciMLBase.successful_retcode(sol)
+    @test sol.u ≈ ref_sol.u atol = 1.0e-10
+    for (subprob, subsol) in zip(probs, sol.original)
+        @test subsol.retcode === solve(subprob, alg.nlalg).retcode
+    end
+end
