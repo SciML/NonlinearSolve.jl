@@ -92,3 +92,20 @@ end
         @test sol.right - sol.left < 2 * eps(Float64)^0.8 * DQ.u"s"
     end
 end
+
+@testset "Falsi with a DynamicQuantities residual of another precision or none" begin
+    # Float64 bracket and tolerance in s; the residual is a Float32 force or a plain Float64.
+    # The residual test, which hands over to bisection, takes the value of `abstol` in the
+    # units of the residual.
+    tspan = (0.0 * DQ.u"s", 2.0 * DQ.u"s")
+    abstol = 1.0e-8 * DQ.u"s"
+    root = cbrt(2.0) * DQ.u"s"
+    force = (x, _) -> Float32(DQ.ustrip(x)^3 - 2) * DQ.u"N"
+    plain = (x, _) -> DQ.ustrip(x)^3 - 2
+    for f in (force, plain)
+        sol = solve(IntervalNonlinearProblem(f, tspan), Falsi(); abstol)
+        @test SciMLBase.successful_retcode(sol)
+        @test abs(sol.u - root) ≤ abstol
+        @test sol.left ≤ root ≤ sol.right
+    end
+end

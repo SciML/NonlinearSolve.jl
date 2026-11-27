@@ -3,9 +3,9 @@ using NonlinearSolve
 using CUDA, NonlinearSolve, LinearSolve, StableRNGs, ADTypes
 using LinearAlgebra: norm
 
-# Empty stderr, or exactly one deprecation warning for `GPUCompiler.compile_hook` with its
-# `likely near` footer
-const COMPILE_HOOK_DEPWARN = r"\AWARNING: Use of GPUCompiler\.compile_hook is deprecated[^\n]*\n(?:  likely near [^\n]*\n)?\z"
+# Empty stderr, or exactly one deprecation warning for `GPUCompiler.compile_hook`, optionally
+# with the `likely near <file>:<line>` footer that Julia prints after it
+const COMPILE_HOOK_DEPWARN = r"\AWARNING: Use of GPUCompiler\.compile_hook is deprecated[^\n]*\n(?:  likely near [^\n]+:\d+\n)?\z"
 only_compile_hook_warning(s) = isempty(s) || occursin(COMPILE_HOOK_DEPWARN, s)
 
 @testset "compile_hook warning matcher" begin
@@ -13,7 +13,12 @@ only_compile_hook_warning(s) = isempty(s) || occursin(COMPILE_HOOK_DEPWARN, s)
     @test only_compile_hook_warning(w)
     @test only_compile_hook_warning("")
     @test !only_compile_hook_warning(w * w)
+    @test only_compile_hook_warning(first(w, findfirst('\n', w))) # no footer
     @test !only_compile_hook_warning(w * "  unrelated indented diagnostic\n")
+    # A footer must be a source location ending in `:<line>`
+    dep = "WARNING: Use of GPUCompiler.compile_hook is deprecated, use X instead.\n"
+    @test !only_compile_hook_warning(dep * "  likely near an unrelated diagnostic\n")
+    @test !only_compile_hook_warning(dep * "  likely near C:\\a\\b.jl:\n")
     @test !only_compile_hook_warning("┌ Warning: something else\n" * w)
 end
 
@@ -48,17 +53,19 @@ if CUDA.functional()
 
     # LinearSolve caps KernelAbstractions below 0.10, which holds CUDA below 6.5. CUDA 6.4
     # reads the deprecated binding `GPUCompiler.compile_hook` and the resulting warning is
-    # printed only once, so trigger it here rather than in the first `@test_nowarn` below.
-    # The first solve may print that one deprecation (a `WARNING: Use of ...` line and its
-    # `likely near ...` footer) and nothing else. This solve can be removed once
-    # CUDA 6.5 resolves in this environment.
-    @test_warn only_compile_hook_warning solve(
-        prob, first(SOLVERS); abstol = 1.0f-5, reltol = 1.0f-5
-    )
-
+    # printed only once, in the first solve. That solve may print this one deprecation (a
+    # `WARNING: Use of ...` line and its `likely near <file>:<line>` footer) and nothing
+    # else; every other solve must print nothing. Use `@test_nowarn` for the first solve
+    # too once CUDA 6.5 resolves in this environment.
     @testset "[IIP] GPU Solvers" begin
-        @testset "$(nameof(typeof(alg)))" for alg in SOLVERS
-            @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+        @testset "$(nameof(typeof(alg)))" for (i, alg) in enumerate(SOLVERS)
+            if i == 1
+                @test_warn only_compile_hook_warning solve(
+                    prob, alg; abstol = 1.0f-5, reltol = 1.0f-5
+                )
+            else
+                @test_nowarn sol = solve(prob, alg; abstol = 1.0f-5, reltol = 1.0f-5)
+            end
         end
     end
 

@@ -1,4 +1,5 @@
 using BracketingNonlinearSolve, Unitful
+import DynamicQuantities as DQ
 
 f(u, p) = u^2 - p
 g(u, p) = sin(u)
@@ -114,4 +115,32 @@ end
     sol = solve(IntervalNonlinearProblem{false}(f, (0.0u"m", 2.0u"m")), Muller(); abstol)
     @test SciMLBase.successful_retcode(sol)
     @test abs(sol.resid) ≤ 1.0e-8u"N"
+end
+
+@testset "Residual tolerance keeps its precision" begin
+    # 1e5 overflows Float16: rounded to the type of the residual, the tolerance would be Inf
+    # and accept the infinite residual reached after one step
+    f = (x, _) -> Float16(1 + x / 1024 + x * (x - 1) * (x - 2))
+    sol = solve(IntervalNonlinearProblem{false}(f, (0.0, 2.0)), Muller(); abstol = 1.0e5, maxiters = 1)
+    @test !isfinite(sol.resid)
+    @test !SciMLBase.successful_retcode(sol)
+
+    # Exact integer residuals at the integral starting samples: 1e-8 is not an Int
+    g = (x, _) -> isinteger(x) ? Int(x)^3 - 2 : x^3 - 2
+    sol = solve(IntervalNonlinearProblem{false}(g, (0.0, 2.0)), Muller(); abstol = 1.0e-8)
+    @test SciMLBase.successful_retcode(sol)
+    @test abs(sol.resid) ≤ 1.0e-8
+end
+
+@testset "DynamicQuantities residual with another precision or none" begin
+    # Float64 bracket and tolerance in s; the residual is a Float32 force or a plain Float64
+    tspan = (0.0 * DQ.u"s", 2.0 * DQ.u"s")
+    abstol = 1.0e-8 * DQ.u"s"
+    force = (x, _) -> Float32(DQ.ustrip(x)^3 - 2) * DQ.u"N"
+    plain = (x, _) -> DQ.ustrip(x)^3 - 2
+    for (f, tol) in ((force, 1.0e-8 * DQ.u"N"), (plain, 1.0e-8))
+        sol = solve(IntervalNonlinearProblem{false}(f, tspan), Muller(); abstol)
+        @test SciMLBase.successful_retcode(sol)
+        @test abs(sol.resid) ≤ tol
+    end
 end

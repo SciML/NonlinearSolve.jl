@@ -13,17 +13,17 @@ function ulp(x)
     return isfinite(z) ? z - y : y - prevfloat(y)
 end
 
-# `abstol`, a tolerance in the units of x, as a tolerance on the residual `fx`. A tolerance
-# in commensurate units (e.g. m and km with Unitful) is converted, so it keeps its physical
-# size. Otherwise (e.g. x in m and f in N) its value is given the units of `fx`. The types
-# of DynamicQuantities values do not carry units, so their value is always transferred;
-# they are stored in SI units, so that keeps the physical size of a commensurate tolerance.
+# `abstol`, a tolerance in the units of x, as a tolerance on the residual `fx`. Values that
+# compare directly (plain numbers of any precision, or Unitful quantities of one dimension
+# such as m and km) are returned unchanged, so the tolerance keeps its precision and its
+# physical size: it is never rounded to the type of `fx` (e.g. 1e5 overflows Float16, and
+# 1e-8 is not an Int). Otherwise (e.g. x in m and f in N) the value of `abstol` is given the
+# units of `fx`. DynamicQuantities types do not carry units, so its methods are in
+# `BracketingNonlinearSolveDynamicQuantitiesExt`.
 function residual_tolerance(abstol, fx)
-    T = typeof(abs(fx))
-    if typeof(abstol) !== T && isconcretetype(promote_type(typeof(abstol), T))
-        return convert(T, abstol)
-    end
-    return abstol * (oneunit(abs(fx)) / oneunit(abstol))
+    afx = abs(fx)
+    isconcretetype(promote_type(typeof(abstol), typeof(afx))) && return abstol
+    return abstol * (oneunit(afx) / oneunit(abstol))
 end
 
 # Sign tests against `zero(x)`, so that `x` may carry units

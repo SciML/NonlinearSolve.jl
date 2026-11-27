@@ -20,6 +20,15 @@ optional keyword argument. In notable contrast to the other
 
   - `middle`: the initial guess for the middle point. If not provided, the
     midpoint of the interval `(left, right)` is used.
+
+### Termination
+
+The iteration stops successfully when `abs(f(x)) ≤ abstol`. The tolerance is given in the
+units of `x` and keeps its own precision, so it is not rounded to the type of the residual.
+If `abstol` and the residual compare directly (plain numbers, or quantities of commensurate
+units such as m and km), `abstol` is used as is. Otherwise (e.g. `x` in m and `f` in N),
+the numeric value of `abstol` is used in the units of `f`; for a DynamicQuantities
+`abstol`, that is its value in SI units, and for a plain residual it is the stripped value.
 """
 struct Muller{T} <: AbstractBracketingAlgorithm
     middle::T

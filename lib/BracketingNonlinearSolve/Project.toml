@@ -14,6 +14,7 @@ SciMLLogging = "a6db7da4-7206-11f0-1eab-35f2a5dbe1d1"
 
 [weakdeps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+DynamicQuantities = "06fc5a27-2a28-4c7c-a15d-362465fb6821"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 
 [sources]
@@ -21,6 +22,7 @@ NonlinearSolveBase = {path = "../NonlinearSolveBase"}
 
 [extensions]
 BracketingNonlinearSolveChainRulesCoreExt = ["ChainRulesCore", "ForwardDiff"]
+BracketingNonlinearSolveDynamicQuantitiesExt = "DynamicQuantities"
 BracketingNonlinearSolveForwardDiffExt = "ForwardDiff"
 
 [compat]
