@@ -166,6 +166,10 @@ run_tests(;
             end
         end
 
+        @safetestset "Termination cache infinite best value is type-generic" include(
+            "termination_infinity.jl"
+        )
+
         @safetestset "Abstract interface trait contracts" begin
             using NonlinearSolveBase, Test
 
