@@ -135,6 +135,7 @@ include("forward_diff.jl")
     (
         last_step_accepted, preinverted_jacobian, normal_form,
         requires_normal_form_jacobian, requires_normal_form_rhs, returns_norm_form_damping,
+        normal_form_workspace, normal_form_jacobian!!,
         stores_full_jacobian, get_full_jacobian, jacobian_initialized_preinverted,
         store_inverse_jacobian,
     )
