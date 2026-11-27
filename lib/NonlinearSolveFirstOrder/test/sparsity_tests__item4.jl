@@ -71,26 +71,18 @@ end
 # In-place `jac!` that inserts new structural entries into `jac_prototype` must
 # still form a correct `JᵀJ` (pattern-mismatch fallback), matching dense TrustRegion.
 
-f_grow(u, p) = [
-    u[1] + 0.5 * u[2]^2 - 1.0,
-    u[2] + 0.5 * u[1] * u[3] - 2.0,
-    u[3] + 0.5 * u[1]^2 - 3.0,
+f_grow(u, p) = [u[1] - 1, u[2] + u[1] * u[3] - 2, u[3] - 1]
+j_grow(u, p) = [
+    1.0 0.0 0.0
+    u[3] 1.0 u[1]
+    0.0 0.0 1.0
 ]
-j_grow(u, p) = dropzeros!(
-    sparse(
-        [
-            1.0 u[2] 0.0
-            0.5 * u[3] 1.0 0.5 * u[1]
-            u[1] 0.0 1.0
-        ]
-    )
-)
 function f_grow!(r, u, p)
     r .= f_grow(u, p)
     return nothing
 end
 function j_grow!(J, u, p)
-    Jn = j_grow(u, p)
+    Jn = sparse(j_grow(u, p))
     fill!(nonzeros(J), 0)
     for (i, j, v) in zip(findnz(Jn)...)
         J[i, j] = v
@@ -105,20 +97,23 @@ end
     )
     dense_prob = NonlinearProblem(NonlinearFunction(f_grow; jac = j_grow), u0)
 
-    sparse_sol = solve(sparse_prob, TrustRegion(); maxiters = 200, abstol = 1.0e-10)
-    dense_sol = solve(dense_prob, TrustRegion(); maxiters = 200, abstol = 1.0e-10)
-
-    @test sparse_sol.retcode == dense_sol.retcode
-    @test sparse_sol.u ≈ dense_sol.u rtol = 1.0e-10 atol = 1.0e-10
-    @test norm(sparse_sol.resid) ≈ norm(dense_sol.resid) rtol = 1.0e-10 atol = 1.0e-10
+    tol = 1.0e-10
+    for prob in (sparse_prob, dense_prob)
+        sol = solve(prob, TrustRegion(); maxiters = 200, abstol = tol)
+        @test SciMLBase.successful_retcode(sol)
+        @test sol.u ≈ [1.0, 1.0, 1.0] rtol = 0 atol = tol
+        @test norm(f_grow(sol.u, prob.p)) < tol
+    end
 
     cache = init(sparse_prob, TrustRegion(); maxiters = 50)
+    @test nnz(cache.jac_cache.J) == 3
     for _ in 1:4
         step!(cache)
     end
     J = cache.jac_cache.J
     JᵀJ = cache.descent_cache.JᵀJ
     @test J isa SparseMatrixCSC
+    @test nnz(J) == 5
     @test JᵀJ isa SparseMatrixCSC
-    @test maximum(abs, Matrix(JᵀJ) - Matrix(transpose(J) * J)) == 0
+    @test JᵀJ == transpose(J) * J
 end
