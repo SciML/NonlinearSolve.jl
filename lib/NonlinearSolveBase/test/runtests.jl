@@ -134,6 +134,63 @@ run_tests(;
                 @test cache.retcode != SciMLBase.ReturnCode.Unstable
             end
 
+            @testset "stagnation uses mode.internalnorm" begin
+                calls = Ref(0)
+                counting_norm = function (x)
+                    calls[] += 1
+                    return 1.0
+                end
+
+                prob = SciMLBase.NonlinearProblem((u, p) -> u, [1.0])
+                mode = NonlinearSolveBase.AbsNormSafeBestTerminationMode(
+                    counting_norm; max_stalled_steps = 1
+                )
+                cache = SciMLBase.init(
+                    prob, mode, [1.0], [1.0]; abstol = 0.0, reltol = 0.0
+                )
+                # Two non-converged checks: 1 init residual + 2 residuals + 2
+                # step norms => 5 calls when stagnation honors internalnorm.
+                cache([1.0], [2.0], [1.0])
+                cache([1.0], [3.0], [2.0])
+                @test calls[] == 5
+
+                l2_mode = NonlinearSolveBase.AbsNormSafeBestTerminationMode(
+                    NonlinearSolveBase.L2_NORM; max_stalled_steps = 3
+                )
+                l2_cache = SciMLBase.init(
+                    prob, l2_mode, [1.0], [1.0]; abstol = 1.0e-8, reltol = 1.0e-8
+                )
+                terminated = false
+                for _ in 1:5
+                    terminated = l2_cache([1.0], [1.0], [1.0])
+                end
+                @test terminated
+                @test l2_cache.retcode == SciMLBase.ReturnCode.Stalled
+            end
+
+            @testset "RelNorm u0_norm uses mode.internalnorm" begin
+                calls = Ref(0)
+                counting_norm = function (x)
+                    calls[] += 1
+                    return 10 * maximum(abs, x)
+                end
+
+                prob = SciMLBase.NonlinearProblem((u, p) -> u, [1.0])
+                mode = NonlinearSolveBase.RelNormSafeBestTerminationMode(
+                    counting_norm; max_stalled_steps = 1
+                )
+                cache = SciMLBase.init(
+                    prob, mode, [1.0], [1.0]; abstol = 0.0, reltol = 0.0
+                )
+                @test calls[] == 3
+                @test cache.u0_norm == 10.0
+
+                calls[] = 0
+                SciMLBase.reinit!(cache, [1.0], [3.0])
+                @test calls[] == 3
+                @test cache.u0_norm == 30.0
+            end
+
             @testset "deferred residual helper contracts" begin
                 using NonlinearSolveBase: AbstractNonlinearTerminationMode,
                     AbsTerminationMode, NonlinearSolveTrace, RelTerminationMode, TraceMinimal,
