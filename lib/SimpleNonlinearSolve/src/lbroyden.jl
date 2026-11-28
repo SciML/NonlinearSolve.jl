@@ -66,6 +66,18 @@ function SciMLBase.__solve(
     return internal_generic_solve(prob, alg, args...; termination_condition, kwargs...)
 end
 
+function check_low_rank_support()
+    if ReactantCore.within_compile()
+        throw(
+            ArgumentError(
+                "Reactant compilation does not support the low-rank iteration of " *
+                    "SimpleLimitedMemoryBroyden. Use SimpleBroyden() for a dense solve."
+            )
+        )
+    end
+    return nothing
+end
+
 @views function internal_generic_solve(
         prob::ImmutableNonlinearProblem, alg::SimpleLimitedMemoryBroyden,
         args...; abstol = nothing, reltol = nothing, maxiters = 1000,
@@ -86,6 +98,7 @@ end
         )
         return Utils.nonlinear_solution_new_alg(sol, alg)
     end
+    check_low_rank_support()
 
     fx = NLBUtils.evaluate_f(prob, x)
 
@@ -154,6 +167,7 @@ function internal_static_solve(
         prob::ImmutableNonlinearProblem{<:SArray}, alg::SimpleLimitedMemoryBroyden, args...;
         abstol = nothing, maxiters = 1000, kwargs...
     )
+    check_low_rank_support()
     x = prob.u0
     fx = NLBUtils.evaluate_f(prob, x)
 

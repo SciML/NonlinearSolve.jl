@@ -52,31 +52,57 @@ function SciMLBase.__solve(
     x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     fx = NLBUtils.evaluate_f(prob, x)
 
-    iszero(fx) &&
+    solved = iszero(fx)
+    compiling = ReactantCore.within_compile()
+    if !compiling && solved
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+    end
 
     abstol, reltol,
         tc_cache = NonlinearSolveBase.init_termination_cache(
         prob, abstol, reltol, fx, x, termination_condition, Val(:simple)
     )
 
+    solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, x, prob)
+    if !compiling && (solved || maxiters ≤ 0)
+        return Utils.simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved)
+    end
+
     @bb xo = similar(x)
     fx_cache = Utils.should_cache_fx(prob, prob.f) ?
         NLBUtils.safe_similar(fx) : fx
     jac_cache = Utils.prepare_jacobian(prob, autodiff, fx_cache, x)
-    J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
+    J = nothing
 
-    for _ in 1:maxiters
+    retcode, iterations, x, fx, xo = Utils.init_loop_state(retcode, x, fx, xo)
+    fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
+
+    ReactantCore.@trace track_numbers = false while (!solved) & (iterations < maxiters)
         @bb copyto!(xo, x)
-        δx = NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
-        @bb x .-= δx
+        xo = Utils.fresh(xo)
+        δx = if compiling
+            compiled_newton_direction(prob, autodiff, fx_cache, x, jac_cache, fx)
+        else
+            J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+            NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
+        end
+        if x isa Number
+            x -= δx
+        else
+            @bb x .-= δx
+        end
+        fx = NLBUtils.evaluate_f!!(prob, fx, x)
 
         solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
 
-        fx = NLBUtils.evaluate_f!!(prob, fx, x)
-        J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+        iterations += 1
     end
 
-    return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
+    return Utils.simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved)
+end
+
+function compiled_newton_direction(prob, autodiff, fx_cache, x, jac_cache, fx)
+    J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
+    return NLBUtils.restructure(x, J \ NLBUtils.safe_vec(fx))
 end

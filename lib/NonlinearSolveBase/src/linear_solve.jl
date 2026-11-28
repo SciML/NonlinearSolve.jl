@@ -20,6 +20,11 @@ end
     stats::NLStats
 end
 
+@concrete mutable struct ReactantLinearSolveCache <: AbstractLinearSolverCache
+    A
+    b
+end
+
 SciMLBase.reinit!(::NativeJLLinearSolveCache; kwargs...) = nothing
 
 """
@@ -32,7 +37,9 @@ handled:
  2. `A` is `SMatrix`, then we solve it with `u = A \\ b` (using the defaults from base
     Julia) (unless a preconditioner is specified)
  3. If `linsolve` is `\\`, then we solve it with directly using `ldiv!(u, A, b)`
- 4. In all other cases, we use `alg` to solve the linear system using
+ 4. During Reactant compilation, the default dense solver uses device-side pivoted LU for square
+    matrices and SVD for rectangular or singular systems.
+ 5. In all other cases, we use `alg` to solve the linear system using
     [LinearSolve.jl](https://github.com/SciML/LinearSolve.jl)
 
 ### Solving the System
@@ -76,6 +83,18 @@ function construct_linear_solver(
     )
     if (A isa Number && b isa Number) || (A isa Diagonal)
         return NativeJLLinearSolveCache(A, b, stats)
+    elseif ReactantCore.within_compile()
+        if linsolve !== nothing || !(A isa DenseMatrix) ||
+                !issubset(keys(kwargs), (:abstol, :reltol, :verbose))
+            throw(
+                ArgumentError(
+                    "Reactant matrix solves require a dense Jacobian and the default linear solver " *
+                        "without custom linsolve_kwargs. Run the solve outside Reactant compilation " *
+                        "to use your LinearSolve configuration."
+                )
+            )
+        end
+        return ReactantLinearSolveCache(A, b)
     elseif linsolve isa typeof(\)
         return NativeJLLinearSolveCache(A, b, stats)
     elseif linsolve === nothing
@@ -117,6 +136,12 @@ function construct_linear_solver(
     return LinearSolveJLCache(lincache, linsolve, stats)
 end
 
+function (cache::ReactantLinearSolveCache)(; A = nothing, b = nothing, kwargs...)
+    A === nothing || (cache.A = A)
+    b === nothing || (cache.b = b)
+    return LinearSolveResult(; u = Utils.traced_matrix_solve(cache.A, cache.b))
+end
+
 """
     alias_A_for_refactorization(linsolve, A)::Bool
 
@@ -130,8 +155,8 @@ alias_A_for_refactorization(linsolve, A) = false
 function (cache::NativeJLLinearSolveCache)(;
         A = nothing, b = nothing, linu = nothing, kwargs...
     )
-    cache.stats.nsolve += 1
-    cache.stats.nfactors += 1
+    ReactantCore.within_compile() || (cache.stats.nsolve += 1)
+    ReactantCore.within_compile() || (cache.stats.nfactors += 1)
 
     A === nothing || (cache.A = A)
     b === nothing || (cache.b = b)

@@ -128,21 +128,82 @@ function solve_single_scc(alg, prob, explicitfun, sols; kwargs...)
     return _sol
 end
 
+# Vector-form callers often wrap each `explicitfun` in a `FunctionWrapper` whose
+# second argument is `SubArray{SSol,...}`. Prefer that declared `SSol` for the
+# `sols` buffer so the view converts (SubArray is invariant in its element type).
+function _explicitfun_sols_eltype(FW::Type)
+    FW isa DataType || return nothing
+    nameof(FW) === :FunctionWrapper || return nothing
+    length(FW.parameters) < 2 && return nothing
+    ATs = FW.parameters[2]
+    ATs isa DataType && ATs <: Tuple && length(ATs.parameters) >= 2 || return nothing
+    V = ATs.parameters[2]
+    V isa Type && V <: SubArray || return nothing
+    ET = eltype(V)
+    return ET <: SciMLBase.NonlinearSolution ? ET : nothing
+end
+
+function sols_buffer_eltype(explicitfuns, T, uType, rType)
+    # Opaque callbacks use views with an unspecialized retcode parameter.
+    default = SciMLBase.NonlinearSolution{
+        T, 1, uType, rType,
+        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
+    }
+    # Homogeneous FunctionWrapper vectors hit the eltype fast path; otherwise
+    # scan every element so a legacy wrapper that is not first still wins
+    # (e.g. Any[plain_noop, legacy_FW]).
+    extracted = _explicitfun_sols_eltype(eltype(explicitfuns))
+    if extracted === nothing
+        for f in explicitfuns
+            extracted = _explicitfun_sols_eltype(typeof(f))
+            extracted === nothing || return extracted
+        end
+    end
+    return extracted === nothing ? default : extracted
+end
+
+struct SCCHistory{S} <: DenseVector{S}
+    solutions::Vector{S}
+end
+
+Base.IndexStyle(::Type{<:SCCHistory}) = IndexLinear()
+Base.size(h::SCCHistory) = size(h.solutions)
+Base.strides(h::SCCHistory) = strides(h.solutions)
+Base.elsize(::Type{SCCHistory{S}}) where {S} = Base.elsize(Vector{S})
+Base.unsafe_convert(::Type{Ptr{S}}, h::SCCHistory{S}) where {S} = Base.unsafe_convert(Ptr{S}, h.solutions)
+Base.getindex(h::SCCHistory, i::Int) = h.solutions[i]
+Base.setindex!(h::SCCHistory, value, i::Int) = setindex!(h.solutions, value, i)
+
+function Base.convert(
+        ::Type{V}, h::SubArray{<:Any, 1, <:SCCHistory}
+    ) where {S, V <: SubArray{S, 1}}
+    h isa V && return h
+    completed = view(parent(h).solutions, parentindices(h)...)
+    completed isa V && return completed
+    return view(Vector{S}(completed), 1:length(h))::V
+end
+
+function callback_history(f, p, completed)
+    _explicitfun_sols_eltype(typeof(f)) === eltype(completed) && return completed
+    history = view(SCCHistory(parent(completed)), parentindices(completed)...)
+    return applicable(f, SciMLBase.unwrap_parameters(p), history) ? history : completed
+end
+
 function iteratively_build_sols(alg, probs::AbstractVector, explicitfuns::AbstractVector; kwargs...)
     # Compute the stripped solution type deterministically from the first problem.
     # After strip_solution, all NonlinearSolutions have a predictable concrete type
-    # regardless of the original problem/algorithm types.
+    # regardless of the original problem/algorithm types. Prefer a FunctionWrapper's
+    # declared SubArray element type when present so legacy signatures keep converting.
     prob1 = first(probs)
     uType = typeof(probvec(prob1))
     T = eltype(uType)
     rType = uType  # resid has same type as u for nonlinear problems
-    ST = SciMLBase.NonlinearSolution{
-        T, 1, uType, rType,
-        NamedTuple{(:p,), Tuple{Nothing}}, Nothing, Nothing, Nothing, Nothing, Nothing,
-    }
+    ST = sols_buffer_eltype(explicitfuns, T, uType, rType)
     sols = Vector{ST}(undef, length(probs))
     for i in eachindex(probs)
-        sols[i] = solve_single_scc(alg, probs[i], explicitfuns[i], view(sols, 1:(i - 1)); kwargs...)::ST
+        f = explicitfuns[i]
+        history = callback_history(f, probs[i].p, view(sols, 1:(i - 1)))
+        sols[i] = solve_single_scc(alg, probs[i], f, history; kwargs...)::ST
     end
     return sols
 end

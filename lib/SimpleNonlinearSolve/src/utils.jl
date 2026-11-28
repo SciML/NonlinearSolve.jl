@@ -4,6 +4,7 @@ using ArrayInterface: ArrayInterface
 using DifferentiationInterface: DifferentiationInterface, Constant
 using FastClosures: @closure
 using LinearAlgebra: LinearAlgebra, I, diagind
+using ReactantCore: ReactantCore
 using NonlinearSolveBase: NonlinearSolveBase, AbstractNonlinearTerminationMode,
     AbstractSafeNonlinearTerminationMode,
     AbstractSafeBestNonlinearTerminationMode
@@ -28,6 +29,10 @@ function identity_jacobian(u::Number, fu::Number, α = true)
 end
 function identity_jacobian(u, fu, α = true)
     J = NLBUtils.safe_similar(u, promote_type(eltype(u), eltype(fu)), length(fu), length(u))
+    if ReactantCore.within_compile()
+        J .= ifelse.(axes(J, 1) .== axes(J, 2)', α, zero(α))
+        return J
+    end
     fill!(J, false)
     if ArrayInterface.fast_scalar_indexing(J)
         @simd ivdep for i in axes(J, 1)
@@ -62,7 +67,8 @@ function check_termination(cache, fx, x, xo, prob)
 end
 
 function check_termination(cache, fx, x, xo, _, ::AbstractNonlinearTerminationMode)
-    return cache(fx, x, xo), ReturnCode.Success, fx, x
+    solved = cache(fx, x, xo)
+    return solved, ifelse(solved, cache.retcode, ReturnCode.Default), fx, x
 end
 function check_termination(cache, fx, x, xo, _, ::AbstractSafeNonlinearTerminationMode)
     return cache(fx, x, xo), cache.retcode, fx, x
@@ -195,16 +201,71 @@ function compute_hvvp(prob, autodiff, fx, x, dir)
     else
         @closure (u, p) -> only(DI.pushforward(prob.f, autodiff, u, (dir,), Constant(p)))
     end
+    if ReactantCore.within_compile()
+        # An output buffer gives Enzyme an explicit return activity for the nested pushforward.
+        function jvp!(out, u, p)
+            copyto!(out, jvp_fn(u, p))
+            return nothing
+        end
+        return only(DI.pushforward(jvp!, similar(fx), autodiff, x, (dir,), Constant(prob.p)))
+    end
     return only(DI.pushforward(jvp_fn, autodiff, x, (dir,), Constant(prob.p)))
 end
 
-function nonlinear_solution_new_alg(
-        sol::SciMLBase.NonlinearSolution{T, N, uType, R, P, A, O, uType2, S, Tr}, alg
-    ) where {T, N, uType, R, P, A, O, uType2, S, Tr}
-    return SciMLBase.NonlinearSolution{T, N, uType, R, P, typeof(alg), O, uType2, S, Tr}(
+function nonlinear_solution_new_alg(sol::SciMLBase.NonlinearSolution, alg)
+    return SciMLBase.NonlinearSolution(
         sol.u, sol.resid, sol.prob, alg, sol.retcode, sol.original, sol.left, sol.right,
         sol.stats, sol.trace
     )
+end
+
+"""
+    init_loop_state(retcode, xs...)
+
+Prepare the state carried by a solver loop: `retcode` and an iteration counter become
+traced under Reactant, and each array in `xs` is made distinct from every other one. Returns
+`(retcode, iterations, xs...)`.
+"""
+function init_loop_state(retcode, xs...)
+    code = retcode isa ReturnCode.T ? NonlinearSolveBase.maybe_traced(retcode) : retcode
+    return code, NonlinearSolveBase.maybe_traced(0),
+        map(fresh, xs)...
+end
+
+# Also needed after `@bb copyto!(dst, src)`, which rebinds `dst = src` for arrays that
+# cannot be indexed into (traced arrays included) and so would alias the two.
+fresh(x) = NonlinearSolveBase.dealias_traced!(x)
+
+function factorization_succeeded(fact)
+    if ReactantCore.within_compile()
+        # The determinant sign detects a zero LU pivot without multiplying pivot magnitudes.
+        return !iszero(last(LinearAlgebra.logabsdet(fact)))
+    end
+    return LinearAlgebra.issuccess(fact)
+end
+
+"""
+    simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved)
+
+Build the solution of a simple solver loop. `x_sol`/`fx_sol` are the iterate reported by
+the termination check and are returned when `solved`; otherwise the last iterate `x`/`fx`
+is returned with `failure_retcode`. A `retcode` still at `Default` on success means the
+initial guess was already a root.
+"""
+function simple_solution(
+        prob, alg, x, fx, x_sol, fx_sol, retcode, solved;
+        failure_retcode = ReturnCode.MaxIters
+    )
+    # `solved` may not infer when the Jacobian type is only known at run time; the results
+    # have the types of their inputs on both the host and the traced path.
+    retcode = ifelse(
+        solved,
+        ifelse(retcode == ReturnCode.Default, ReturnCode.Success, retcode),
+        failure_retcode
+    )::typeof(retcode)
+    u = NonlinearSolveBase.select(solved, x_sol, x)::typeof(x)
+    resid = NonlinearSolveBase.select(solved, fx_sol, fx)::typeof(fx)
+    return NonlinearSolveBase.build_nonlinear_solution(prob, alg, u, resid; retcode)
 end
 
 end

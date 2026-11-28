@@ -150,7 +150,7 @@ end
         );
         abstol = 1.0e-14,
         reltol = 1.0e-14,
-        verbose = false,
+        verbose = true,
         # `dense` is accepted by SciMLBase and must not be forwarded to `step!` on retry.
         alias = SciMLBase.NonlinearAliasSpecifier(alias_u0 = false), dense = false
     )

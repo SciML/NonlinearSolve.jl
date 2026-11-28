@@ -9,7 +9,7 @@ NonlinearSolve.jl supports GPU acceleration on a wide array of devices, such as:
 | Intel            | OneAPI              | [OneAPI.jl](https://github.com/JuliaGPU/oneAPI.jl) | `oneAPI.oneAPIBackend()` |
 | Apple (M-Series) | Metal               | [Metal.jl](https://github.com/JuliaGPU/Metal.jl)   | `Metal.MetalBackend()`   |
 
-To use NonlinearSolve.jl on GPUs, there are two distinctly different approaches:
+To use NonlinearSolve.jl on GPUs, there are three distinctly different approaches:
 
  1. You can build a `NonlinearProblem` / `NonlinearLeastSquaresProblem` where the elements
     of the problem, i.e. `u0` and `p`, are defined on GPUs. This will make the evaluations
@@ -20,6 +20,9 @@ To use NonlinearSolve.jl on GPUs, there are two distinctly different approaches:
     system over a large number of inputs. This is useful for cases where you have a small
     `NonlinearProblem` / `NonlinearLeastSquaresProblem` which you want to solve over a large
     number of initial guesses or parameters.
+ 3. You can compile a complete `solve` call with
+    [Reactant.jl](https://enzymead.github.io/Reactant.jl/stable/). This keeps the nonlinear
+    iterations inside one compiled program and lets their count depend on runtime inputs.
 
 For a deeper dive into the computational difference between these techniques and why it
 leads to different pros/cons, see the
@@ -28,7 +31,7 @@ In particular, the second form is unique to NonlinearSolve.jl and offers orders 
 performance improvements over libraries in Jax and PyTorch which are restricted to only
 using the first form.
 
-In this tutorial we will highlight both use cases in separate parts.
+In this tutorial we will highlight these use cases in separate parts.
 
 !!! note
     
@@ -66,6 +69,80 @@ Notice a few things here. One, nothing is different except the input array types
 notice that `cu` arrays automatically default to `Float32` precision. Since NonlinearSolve.jl
 respects the user's chosen types, this changes NonlinearSolve.jl to use `Float32` precision,
 and thus the tolerances are adjusted accordingly.
+
+## Whole-solve compilation with Reactant.jl
+
+Reactant arrays can be passed through the standard `NonlinearProblem` and `solve` APIs.
+Array Newton-family solves that need a concrete Jacobian require an analytic `jac`:
+
+```julia
+import NonlinearSolve as NLS
+import Reactant
+import LinearAlgebra: diagm
+
+f(u, p) = u .* u .- p
+jac(u, p) = diagm(0 => 2 .* u)
+
+function reactant_solve(u0, p)
+    prob = NLS.NonlinearProblem(NLS.NonlinearFunction(f; jac), u0, p)
+    return NLS.solve(prob, NLS.NewtonRaphson())
+end
+
+u0 = Reactant.to_rarray(Float32[1, 1])
+p = Reactant.to_rarray(Float32[2])
+sol = Reactant.@jit reactant_solve(u0, p)
+```
+
+The nonlinear iteration uses a traced `while` operation. The array shapes are fixed for a
+compiled executable, but convergence and the number of nonlinear steps are determined at
+runtime. Use `Reactant.@compile` instead of `Reactant.@jit` when the executable will be
+called repeatedly with new initial values or parameters of the same shape.
+
+Algorithms follow their normal `solve` dispatch during Reactant compilation. There is no
+separate allowlist or fallback algorithm: unsupported operations report their errors from
+Reactant or the package that implements them. The Reactant test group covers first-order
+methods and polyalgorithms with out-of-place nonlinear and least-squares problems.
+Compiled array solves that need a concrete automatic-differentiation Jacobian require an
+analytic `jac`: registered DifferentiationInterface cannot yet build array Jacobians under
+`@jit`/`@compile`
+(see [JuliaDiff/DifferentiationInterface.jl#1067](https://github.com/JuliaDiff/DifferentiationInterface.jl/pull/1067)).
+Quasi-Newton methods with identity or diagonal initialization work without an analytic
+Jacobian. Krylov / Jacobian-operator linear solves are not supported under compile. Scalar
+problems may use AD derivatives under compile; automatic backend selection prefers
+`DifferentiationInterface.AutoForwardFromPrimitive(AutoEnzyme(; mode = Forward))`.
+An explicit `autodiff = AutoEnzyme(; mode = Forward)` also works for some scalar solves.
+
+The default safe-best termination mode retains the iterate with the smallest residual
+norm and checks for stalled progress. Its protective check reports a non-finite residual
+as `ReturnCode.Unstable`. With an explicit `AbsNormTerminationMode`, a non-finite
+residual fails the convergence test and iteration continues.
+
+Compiled first-order solves require an inactive Jacobian reuse policy. For problems where
+the automatic policy enables reuse, set `jacobian_reuse = false` to request a fresh
+Jacobian at each step. The default dense solver uses device-side pivoted LU for square Jacobians. It uses a
+singular value decomposition for singular or rectangular Jacobians. Run solves with a custom
+matrix solver or linear-solver options outside Reactant compilation. Whole-solve compilation does not support the box-bounds transformation.
+
+Quasi-Newton Jacobian reset rules and `max_resets` are evaluated under compile. The compiled
+solver updates the `dfu` baseline after a du-stall reset and evaluates reset rules while
+`force_reinit` is set. A failed linear solve under compile retries on the next
+step rather than recursively inside the same step.
+
+`DFSane` throws an `ArgumentError` under compilation until its solver cache integrates
+the traced non-monotone search provided by LineSearch.jl. Broyden configured with
+an explicit AD line search (for example `BackTracking(autodiff = AutoForwardDiff())`) also
+fails loudly under compile, because dual numbers cannot wrap traced values.
+
+When a polyalgorithm uses a data-dependent auxiliary initializer, use the default
+`store_original=Val(false)`. Initialization failure returns the mapped state and its residual.
+
+The returned solution is an ordinary `NonlinearSolution`. `u` and `resid` are device
+arrays, and `retcode` is a `Reactant.ConcreteEnum{ReturnCode.T}` that can be
+compared against `ReturnCode` values or converted with `ReturnCode.T(sol.retcode)`;
+`SciMLBase.successful_retcode(sol)` works as usual. `stats` is `nothing`, since `NLStats`
+counts host evaluations, which inside a compiled program only happen once while tracing,
+and `prob` is `nothing`, since a problem's keyword arguments cannot be returned from a
+compiled program.
 
 ## GPU Acceleration over Large Parameter Searches using KernelAbstractions.jl
 

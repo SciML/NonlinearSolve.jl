@@ -31,3 +31,12 @@ include("setup_rootfindtestsnippet.jl")
         @test all(solve(probN, alg; termination_condition).u .≈ sqrt(2.0))
     end
 end
+
+@testset "SimpleBroyden accepts a rational step with constant residual" begin
+    resid = [0, 1 // 100]
+    prob = NonlinearProblem((u, p) -> copy(resid), [1 // 1, 1 // 1])
+    sol = solve(prob, SimpleBroyden(; alpha = 1 // 1); abstol = 0.1, reltol = 0.1)
+    @test sol.retcode == SciMLBase.ReturnCode.Success
+    @test sol.u == [1, 99 // 100]
+    @test sol.resid == resid
+end

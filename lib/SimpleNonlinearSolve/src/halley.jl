@@ -21,7 +21,11 @@ A low-overhead implementation of Halley's Method.
 end
 
 function configure_autodiff(prob, alg::SimpleHalley)
-    autodiff = something(alg.autodiff, AutoForwardDiff())
+    autodiff = if alg.autodiff === nothing && ReactantCore.within_compile()
+        NonlinearSolveBase.select_jacobian_autodiff(prob, nothing)
+    else
+        something(alg.autodiff, AutoForwardDiff())
+    end
     autodiff = SciMLBase.has_jac(prob.f) ? autodiff :
         NonlinearSolveBase.select_jacobian_autodiff(prob, autodiff)
     @set! alg.autodiff = autodiff
@@ -42,8 +46,11 @@ function SciMLBase.__solve(
     fx = NLBUtils.evaluate_f(prob, x)
     T = promote_type(eltype(fx), eltype(x))
 
-    iszero(fx) &&
+    solved = iszero(fx)
+    compiling = ReactantCore.within_compile()
+    if !compiling && solved
         return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Success)
+    end
 
     abstol, reltol,
         tc_cache = NonlinearSolveBase.init_termination_cache(
@@ -64,39 +71,58 @@ function SciMLBase.__solve(
     end
 
     J = Utils.compute_jacobian!!(nothing, prob, autodiff, fx_cache, x, jac_cache)
-    for _ in 1:maxiters
+    retcode, iterations, x, fx, xo, J, cᵢ = Utils.init_loop_state(
+        ReturnCode.Default, x, fx, xo, J, cᵢ
+    )
+    fx_sol, x_sol = Utils.fresh(fx), Utils.fresh(x)
+    unstable = NonlinearSolveBase.maybe_traced(false)
+
+    ReactantCore.@trace track_numbers = false while (!solved) & (!unstable) &
+            (iterations < maxiters)
         NLBUtils.can_setindex(x) || (A = J)
 
         # Factorize Once and Reuse
-        J_fact = if J isa Number
-            J
+        if J isa Number
+            J_fact = J
         else
-            fact = LinearAlgebra.lu(J; check = false)
-            !LinearAlgebra.issuccess(fact) && return SciMLBase.build_solution(
-                prob, alg, x, fx; retcode = ReturnCode.Unstable
-            )
-            fact
+            J_fact = LinearAlgebra.lu(J; check = false)
+            unstable = !Utils.factorization_succeeded(J_fact)
         end
 
-        aᵢ = J_fact \ NLBUtils.safe_vec(fx)
-        hvvp = Utils.compute_hvvp(
-            prob, autodiff, fx_cache, x, NLBUtils.restructure(x, aᵢ)
-        )
-        bᵢ = J_fact \ NLBUtils.safe_vec(hvvp)
+        ReactantCore.@trace track_numbers = false if !unstable
+            cᵢ = halley_step(J_fact, prob, autodiff, fx_cache, fx, x, cᵢ, T)
 
-        cᵢ_ = NLBUtils.safe_vec(cᵢ)
-        @bb @. cᵢ_ = (aᵢ * aᵢ) / (-aᵢ + (T(0.5) * bᵢ))
-        cᵢ = NLBUtils.restructure(cᵢ, cᵢ_)
+            solved, retcode, fx_sol,
+                x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
+            fx_sol, x_sol = Utils.fresh(fx_sol), Utils.fresh(x_sol)
 
-        solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+            if compiling || !solved
+                @bb @. x += ifelse(solved, zero(cᵢ), cᵢ)
+                @bb copyto!(xo, x)
+                xo = Utils.fresh(xo)
 
-        @bb @. x += cᵢ
-        @bb copyto!(xo, x)
-
-        fx = NLBUtils.evaluate_f!!(prob, fx, x)
-        J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+                fx = NLBUtils.evaluate_f!!(prob, fx, x)
+                J = Utils.compute_jacobian!!(J, prob, autodiff, fx_cache, x, jac_cache)
+            end
+        end
+        iterations += 1
     end
 
-    return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
+    if !compiling && unstable
+        return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.Unstable)
+    end
+    failure_retcode = ifelse(unstable, ReturnCode.Unstable, ReturnCode.MaxIters)
+    return Utils.simple_solution(prob, alg, x, fx, x_sol, fx_sol, retcode, solved; failure_retcode)
+end
+
+function halley_step(J_fact, prob, autodiff, fx_cache, fx, x, cᵢ, ::Type{T}) where {T}
+    aᵢ = J_fact \ NLBUtils.safe_vec(fx)
+    hvvp = Utils.compute_hvvp(
+        prob, autodiff, fx_cache, x, NLBUtils.restructure(x, aᵢ)
+    )
+    bᵢ = J_fact \ NLBUtils.safe_vec(hvvp)
+
+    cᵢ_ = NLBUtils.safe_vec(cᵢ)
+    @bb @. cᵢ_ = (aᵢ * aᵢ) / (-aᵢ + (T(0.5) * bᵢ))
+    return NLBUtils.restructure(cᵢ, cᵢ_)
 end

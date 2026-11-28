@@ -18,6 +18,7 @@ function SciMLBase.__solve(
     x = NLBUtils.maybe_unaliased(prob.u0, _alias_u0)
     T = eltype(x)
     fx = NLBUtils.evaluate_f(prob, x)
+    solved = iszero(fx)
 
     abstol, reltol,
         tc_cache = NonlinearSolveBase.init_termination_cache(
@@ -32,8 +33,14 @@ function SciMLBase.__solve(
     J = one.(x)
     @bb δx² = similar(x)
 
-    for _ in 1:maxiters
-        any(iszero, J) && (J = Utils.identity_jacobian!!(J))
+    retcode, iterations, x, δx, fprev, xo, J, δx² = Utils.init_loop_state(
+        ReturnCode.Default, x, δx, fprev, xo, J, δx²
+    )
+
+    ReactantCore.@trace track_numbers = false while (!solved) & (iterations < maxiters)
+        # `J` is the diagonal Jacobian approximation, so resetting it is a broadcast.
+        reset_jacobian = any(iszero, J)
+        @bb @. J = ifelse(reset_jacobian, one(J), J)
 
         @bb @. δx = fprev / J
 
@@ -41,8 +48,8 @@ function SciMLBase.__solve(
         fx = NLBUtils.evaluate_f!!(prob, fx, x)
 
         # Termination Checks
-        solved, retcode, fx_sol, x_sol = Utils.check_termination(tc_cache, fx, x, xo, prob)
-        solved && return SciMLBase.build_solution(prob, alg, x_sol, fx_sol; retcode)
+        solved, retcode, fx, x = Utils.check_termination(tc_cache, fx, x, xo, prob)
+        fx, x = Utils.fresh(fx), Utils.fresh(x)
 
         @bb δx .*= -1
         @bb @. δx² = δx^2 * J^2
@@ -50,7 +57,9 @@ function SciMLBase.__solve(
 
         @bb copyto!(fprev, fx)
         @bb copyto!(xo, x)
+        fprev, xo = Utils.fresh(fprev), Utils.fresh(xo)
+        iterations += 1
     end
 
-    return SciMLBase.build_solution(prob, alg, x, fx; retcode = ReturnCode.MaxIters)
+    return Utils.simple_solution(prob, alg, x, fx, x, fx, retcode, solved)
 end

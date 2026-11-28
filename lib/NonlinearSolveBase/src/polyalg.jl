@@ -98,8 +98,8 @@ end
     caches <: Tuple
     alg <: NonlinearSolvePolyAlgorithm
 
-    best::Int
-    current::Int
+    best
+    current
     nsteps::Int
 
     # Best-subalgorithm retention (see the algorithm docstring): `retain_best` arms it
@@ -109,8 +109,8 @@ end
     # `deferred_u0`/`deferred_p` carry the `reinit!` arguments for the subcaches whose
     # reinitialization was deferred until escalation reaches them.
     retain_best::Bool
-    start_current::Int
-    wrapped::Bool
+    start_current
+    wrapped
     retain_count::Int
     deferred_u0
     deferred_p
@@ -119,7 +119,7 @@ end
     total_time::Float64
     maxtime
 
-    retcode::ReturnCode.T
+    retcode
     force_stop::Bool
 
     maxiters::Int
@@ -154,16 +154,27 @@ function update_initial_values!(cache::NonlinearSolvePolyAlgorithmCache, u0, p)
 end
 
 function NonlinearSolveBase.get_abstol(cache::NonlinearSolvePolyAlgorithmCache)
-    return NonlinearSolveBase.get_abstol(cache.caches[cache.current])
+    return _poly_current_value(get_abstol, cache)
 end
 function NonlinearSolveBase.get_reltol(cache::NonlinearSolvePolyAlgorithmCache)
-    return NonlinearSolveBase.get_reltol(cache.caches[cache.current])
+    return _poly_current_value(get_reltol, cache)
 end
 function NonlinearSolveBase.get_u(cache::NonlinearSolvePolyAlgorithmCache)
-    return NonlinearSolveBase.get_u(cache.caches[cache.current])
+    return _poly_current_value(get_u, cache)
 end
 function NonlinearSolveBase.get_fu(cache::NonlinearSolvePolyAlgorithmCache)
-    return NonlinearSolveBase.get_fu(cache.caches[cache.current])
+    return _poly_current_value(get_fu, cache)
+end
+
+function _poly_current_value(f, cache)
+    if cache.current isa Int
+        return f(cache.caches[cache.current])
+    end
+    value = f(first(cache.caches))
+    for i in 2:length(cache.caches)
+        value = select(cache.current == i, f(cache.caches[i]), value)
+    end
+    return value
 end
 
 function SII.symbolic_container(cache::NonlinearSolvePolyAlgorithmCache)
@@ -220,11 +231,13 @@ function InternalAPI.reinit!(
     cache.alias_u0 && u0 !== cache.u0 && copyto!(cache.u0, u0)
     cache.retain_best = retain_best
     cache.retain_count = retain_best ? cache.retain_count + 1 : 0
-    retained = retain_best && 1 ≤ cache.best ≤ Utils.unwrap_val(cache.static_length)
-    reprobe = retained && cache.best > cache.alg.start_index &&
-        cache.retain_count % RETAIN_REPROBE_INTERVAL == 0
-    cache.current = (retained && !reprobe) ? cache.best : cache.alg.start_index
-    cache.start_current = cache.current
+    start = cache.alg.start_index
+    if retain_best && cache.retain_count % RETAIN_REPROBE_INTERVAL != 0
+        eligible = (start ≤ cache.best) & (cache.best ≤ length(cache.caches))
+        start = ifelse(eligible, cache.best, start)
+    end
+    cache.start_current = start
+    cache.current = start
     cache.wrapped = false
     if retain_best
         cache.deferred_u0 = u0
@@ -237,8 +250,15 @@ function InternalAPI.reinit!(
         # solve even though a retained solve usually runs only the starting
         # subalgorithm. Reinitialize just that one here and defer the rest to the
         # moment escalation actually reaches them (`deferred_subcache_reinit!`).
-        subcache = cache.caches[cache.current]
-        InternalAPI.reinit!(subcache, args...; u = get_u(subcache), p, u0, kwargs...)
+        if start isa Int
+            subcache = cache.caches[start]
+            deferred_subcache_reinit!(cache, subcache, args...)
+        else
+            for i in cache.alg.start_index:length(cache.caches)
+                subcache = cache.caches[i]
+                _reinit_polychild_if!(start == i, subcache, u0, p, args...)
+            end
+        end
     else
         foreach(cache.caches) do cache
             InternalAPI.reinit!(cache, args...; u = get_u(cache), p, u0, kwargs...)
@@ -254,10 +274,21 @@ end
 # Reinitializes a subcache whose reinitialization was deferred by a
 # `retain_best = true` `reinit!`, at the moment ladder escalation reaches it.
 # Mirrors the kwargs of the eager loop in `reinit!` above.
-function deferred_subcache_reinit!(cache::NonlinearSolvePolyAlgorithmCache, subcache)
-    InternalAPI.reinit!(
-        subcache; u = get_u(subcache), p = cache.deferred_p, u0 = cache.deferred_u0
-    )
+function deferred_subcache_reinit!(cache::NonlinearSolvePolyAlgorithmCache, subcache, args...)
+    return _reinit_polychild!(subcache, cache.deferred_u0, cache.deferred_p, args...)
+end
+
+function _reinit_polychild!(subcache, u0, p, args...)
+    InternalAPI.reinit!(subcache, args...; u = get_u(subcache), p, u0)
+    return nothing
+end
+
+function _reinit_polychild_if!(active, subcache, u0, p, args...)
+    dealias_traced!(subcache)
+    ReactantCore.@trace track_numbers = false if active
+        _reinit_polychild!(subcache, u0, p, args...)
+        dealias_traced!(subcache)
+    end
     return nothing
 end
 
@@ -302,11 +333,14 @@ function SciMLBase.__init(
     end
 
     # Native child caches evaluate the residual and validate bounds during construction.
-    initialize_before_cache = has_box_bounds(prob) && SciMLBase.allowsbounds(alg)
+    initialize_before_cache = (has_box_bounds(prob) && SciMLBase.allowsbounds(alg)) ||
+        (ReactantCore.within_compile() && SciMLBase.has_initialization_data(prob.f))
     success = true
     if initialize_before_cache
-        prob, success = run_initialization!(prob, initializealg, prob)
+        prob, success = _initialize_polyproblem(prob, initializealg, kwargs)
     end
+    initial_code = ifelse(success, ReturnCode.Default, ReturnCode.InitialFailure)
+    traced_init = !(success isa Bool)
 
     u0 = prob.u0
     u0_aliased = alias_u0 ? copy(u0) : u0
@@ -325,16 +359,15 @@ function SciMLBase.__init(
                 initializealg = SciMLBase.NoInit(), kwargs...
             )
         end,
-        alg, -1, alg.start_index, 0, false, alg.start_index, false, 0, u0, prob.p,
+        alg, traced_init ? maybe_traced(-1) : -1,
+        traced_init ? maybe_traced(alg.start_index) : alg.start_index,
+        0, false, traced_init ? maybe_traced(alg.start_index) : alg.start_index,
+        traced_init ? maybe_traced(false) : false, 0, u0, prob.p,
         stats, 0.0, maxtime,
-        ReturnCode.Default, false, maxiters, internalnorm,
+        initial_code, false, maxiters, internalnorm,
         u0, u0_aliased, alias_u0, initializealg, verbose
     )
-    if initialize_before_cache
-        success || (cache.retcode = ReturnCode.InitialFailure)
-    else
-        run_initialization!(cache)
-    end
+    initialize_before_cache || run_initialization!(cache)
     return cache
 end
 
@@ -428,20 +461,35 @@ function build_solution_less_specialize(
         right = nothing, stats = nothing, trace = nothing,
         store_original::Val = Val(false), kwargs...
     )
+    # Reactant cannot rebuild `Base.Pairs` keyword bags on the problem.
+    stored_prob = ReactantCore.within_compile() ? nothing : prob
+    stored_stats = ReactantCore.within_compile() ? nothing : stats
+    stored_trace = ReactantCore.within_compile() ? nothing : trace
     if store_original isa Val{true}
+        return less_specialized_solution(
+            Any, u, resid, stored_prob, alg, retcode, original, left, right,
+            stored_stats, stored_trace
+        )
+    end
+    return less_specialized_solution(
+        Nothing, u, resid, stored_prob, alg, retcode, nothing, left, right,
+        stored_stats, stored_trace
+    )
+end
+
+# SciMLBase ≥ 3.51 appends the return code type to `NonlinearSolution`'s parameters.
+let retcode_param = fieldtype(SciMLBase.NonlinearSolution, :retcode) === ReturnCode.T ?
+        () : (:(typeof(retcode)),)
+    @eval function less_specialized_solution(
+            ::Type{O}, u, resid, prob, alg, retcode, original, left, right, stats, trace
+        ) where {O}
         return SciMLBase.NonlinearSolution{
             eltype(eltype(u)), ndims(u), typeof(u), typeof(resid), typeof(prob),
-            typeof(alg), Any, typeof(left), typeof(stats), typeof(trace),
+            typeof(alg), O, typeof(left), typeof(stats), typeof(trace), $(retcode_param...),
         }(
             u, resid, prob, alg, retcode, original, left, right, stats, trace
         )
     end
-    return SciMLBase.NonlinearSolution{
-        eltype(eltype(u)), ndims(u), typeof(u), typeof(resid), typeof(prob),
-        typeof(alg), Nothing, typeof(left), typeof(stats), typeof(trace),
-    }(
-        u, resid, prob, alg, retcode, nothing, left, right, stats, trace
-    )
 end
 
 function findmin_caches(prob::AbstractNonlinearProblem, caches)
