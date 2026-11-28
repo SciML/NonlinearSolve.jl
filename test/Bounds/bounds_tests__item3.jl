@@ -20,9 +20,12 @@ let prob = NonlinearLeastSquaresProblem(Returns(42), [1.0, 1.0], 1:10)
     unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt(; autodiff = AutoForwardDiff()))
     @test unbounded_prob.f.f.u_cache isa FixedSizeDiffCache
 
-    # Test Enzyme
+    # Enzyme must not reuse a mapped-state buffer (Const-captured writes are lost).
+    # A `nothing` cache forces a fresh allocation per residual / postcondition map;
+    # the solve tests below check that the resulting Jacobian is correct.
     unbounded_prob = transform_bounded_problem(prob, LevenbergMarquardt(; autodiff = AutoEnzyme()))
-    @test unbounded_prob.f.f.u_cache isa typeof(prob.u0)
+    @test unbounded_prob.f.f.u_cache === nothing
+    @test unbounded_prob.f.f.u_prev_cache === nothing
 end
 
 for autodiff in (AutoEnzyme(; function_annotation = Enzyme.Duplicated), AutoForwardDiff())

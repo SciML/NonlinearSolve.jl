@@ -11,6 +11,24 @@ end
 
 alg = HomotopyContinuationJL{true}(; threading = false)
 
+@testset "positional constructor" begin
+    alg = HomotopyContinuationJL{true}(AutoForwardDiff(), (; threading = false))
+    @test alg isa HomotopyContinuationJL{true, Val{false}}
+
+    prob = NonlinearProblem((u, p) -> u * u - 1, 1.0)
+    sol = solve(prob, alg)
+    @test sol.converged
+    solutions = [s.u for s in sol.u]
+    sort!(solutions)
+    @test solutions[1] ≈ -1.0 atol = 1.0e-10
+    @test solutions[2] ≈ 1.0 atol = 1.0e-10
+
+    prob = NonlinearProblem((u, p) -> u * u + 1, 1.0)
+    sol = solve(prob, alg)
+    @test !sol.converged
+    @test sol.u[1].retcode == SciMLBase.ReturnCode.ConvergenceFailure
+end
+
 @testset "scalar u" begin
     rhs = function (u, p)
         return u * u - p[1] * u + p[2]
@@ -98,7 +116,8 @@ end
 
 f! = function (du, u, p)
     du[1] = u[1] * u[1] - p[1] * u[2] + u[2]^3 + 1
-    return du[2] = u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]
+    du[2] = u[2]^3 + 2 * p[2] * u[1] * u[2] + u[2]
+    return
 end
 
 f = function (u, p)
@@ -109,7 +128,8 @@ fjac! = function (j, u, p)
     j[1, 1] = 2u[1]
     j[1, 2] = -p[1] + 3 * u[2]^2
     j[2, 1] = 2 * p[2] * u[2]
-    return j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
+    j[2, 2] = 3 * u[2]^2 + 2 * p[2] * u[1] + 1
+    return
 end
 fjac = function (u, p)
     return [

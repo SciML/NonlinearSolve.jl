@@ -5,7 +5,8 @@ using SciMLBase, StaticArrays
 # Test with in-place function
 function f_iip(du, u, p, t)
     du[1] = 2 - 2u[1]
-    return du[2] = u[1] - 4u[2]
+    du[2] = u[1] - 4u[2]
+    return
 end
 
 u0 = zeros(2)

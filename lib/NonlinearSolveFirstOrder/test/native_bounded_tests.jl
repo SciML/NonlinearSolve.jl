@@ -9,6 +9,8 @@ const native_bounded_algorithms = [
     BoundedGaussNewton, bounded_gn_tr, bounded_gn_tr_ls,
 ]
 
+@safetestset "Bounded LevenbergMarquardt with AutoEnzyme (#1288)" include("issue_1288.jl")
+
 @testset "Native bounded solver contracts" begin
     for constructor in native_bounded_algorithms, ad in (AutoForwardDiff(), AutoFiniteDiff())
         @testset "$(constructor), $(ad)" begin

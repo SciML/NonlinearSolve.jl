@@ -322,7 +322,7 @@ function SciMLBase.__init(
 
         if has_forcing
             forcing_cache = InternalAPI.init(
-                _ad_prob, alg.forcing, fu, u, u, _ad_prob.p; stats, internalnorm,
+                _ad_prob, alg.forcing, _ad_prob.f, fu, u, _ad_prob.p; stats, internalnorm,
                 autodiff = ifelse(
                     provided_jvp_autodiff, alg.jvp_autodiff, alg.vjp_autodiff
                 ),
@@ -367,11 +367,21 @@ function NonlinearSolveBase.supports_deferred_residual(
     return !NonlinearSolveBase.trace_is_active(cache.trace)
 end
 
+function _active_forcing_cache(cache, J)
+    fc = cache.forcing_cache
+    if fc === nothing || fc === missing || cache.u isa Number || J isa Diagonal
+        return nothing
+    end
+    return fc
+end
+
 function NonlinearSolveBase.refresh_residual!(cache::GeneralizedFirstOrderAlgorithmCache)
     cache.fu_deferred || return nothing
     cache.fu_deferred = false
     Utils.evaluate_f!(cache, cache.u, cache.p)
     schedule_next_jacobian!(cache)
+    fc = _active_forcing_cache(cache, nothing)
+    fc !== nothing && post_step_forcing!(fc, nothing, cache.u, cache.fu, nothing, cache.nsteps)
     NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
     return nothing
 end
@@ -416,10 +426,11 @@ function InternalAPI.step!(
         return
     end
 
-    has_forcing = cache.forcing_cache !== nothing && cache.forcing_cache !== missing && !(cache.u isa Number) && !(J isa Diagonal)
+    forcing_cache = _active_forcing_cache(cache, J)
+    has_forcing = forcing_cache !== nothing
 
     if has_forcing
-        pre_step_forcing!(cache.forcing_cache, cache.descent_cache, J, cache.u, cache.fu, cache.nsteps)
+        pre_step_forcing!(forcing_cache, cache.descent_cache, J, cache.u, cache.fu, cache.nsteps)
     end
 
     @static_timeit cache.timer "descent" begin
@@ -456,10 +467,6 @@ function InternalAPI.step!(
     δu, descent_intermediates = descent_result.δu, descent_result.extras
 
     if descent_result.success
-        if has_forcing
-            post_step_forcing!(cache.forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps)
-        end
-
         accepted_step = false
         if cache.globalization isa Val{:LineSearch}
             @static_timeit cache.timer "linesearch" begin
@@ -532,6 +539,12 @@ function InternalAPI.step!(
             cache.fu_deferred = true
         else
             accepted_step && schedule_next_jacobian!(cache)
+            if has_forcing &&
+                    (accepted_step || cache.globalization isa Val{:LineSearch})
+                post_step_forcing!(
+                    forcing_cache, J, cache.u, cache.fu, δu, cache.nsteps
+                )
+            end
             NonlinearSolveBase.check_and_update!(cache, cache.fu, cache.u, cache.u_cache)
         end
     else
