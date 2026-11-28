@@ -4,11 +4,12 @@ include("setup_rootfindingtestsnippet.jl")
 using ForwardDiff: ForwardDiff, Dual, Partials, Tag, partials
 
 quadratic_fn = IntervalNonlinearFunction(quadratic_f; jac = (u, p) -> 2u)
+linear_fn = IntervalNonlinearFunction(linear_f; jac = (u, p) -> one(u))
 
 @testset "Roots and their derivatives" begin
     function g(p)
         prob = IntervalNonlinearProblem{false}(quadratic_fn, typeof(p).((1.0, 20.0)), p)
-        return solve(prob, NewtonBisection(); abstol = 1.0e-9).left
+        return solve(prob, NewtonBisection(); abstol = 1.0e-9).u
     end
 
     @testset for p in 1.1:0.1:100.0
@@ -18,20 +19,19 @@ quadratic_fn = IntervalNonlinearFunction(quadratic_f; jac = (u, p) -> 2u)
 end
 
 @testset "Tolerances" begin
-    prob = IntervalNonlinearProblem(quadratic_fn, (1.0, 20.0), 2.0)
-    @testset for abstol in (0.1, 1.0e-3, 1.0e-6, 1.0e-9)
-        sol = solve(prob, NewtonBisection(); abstol)
+    # In the second bracket, the root is far from the middle.
+    @testset for abstol in (1.0, 0.1, 1.0e-3, 1.0e-6, 1.0e-9), (tspan, p) in (((1.0, 20.0), 2.0), ((0.0, 1.9), 1.5625))
+        sol = solve(IntervalNonlinearProblem(quadratic_fn, tspan, p), NewtonBisection(); abstol)
         @test sol.retcode == ReturnCode.Success
-        @test (sol.right - sol.left) / 2 < abstol
-        @test sol.left ≤ sqrt(2) ≤ sol.right
+        @test sol.left ≤ sqrt(p) ≤ sol.right
+        @test abs(sol.u - sqrt(p)) < abstol
     end
 
-    sol = solve(prob, NewtonBisection(); abstol = 0.0)
+    sol = solve(IntervalNonlinearProblem(quadratic_fn, (1.0, 20.0), 2.0), NewtonBisection(); abstol = 0.0)
     @test sol.retcode == ReturnCode.FloatingPointLimit
     @test quadratic_f(sol.left, 2.0) < 0 < quadratic_f(sol.right, 2.0)
     @test nextfloat(sol.left) == sol.right
 
-    linear_fn = IntervalNonlinearFunction(linear_f; jac = (u, p) -> one(u))
     sol = solve(IntervalNonlinearProblem(linear_fn, (-1.0, 1.0), 0.0), NewtonBisection(); abstol = 0.0)
     @test sol.retcode == ReturnCode.Success
     @test sol.u == sol.left == sol.right == 0.0
@@ -68,6 +68,10 @@ end
         @test sol3.left ≥ sol3.right
         @test sol4.left ≥ sol4.right
     end
+
+    # Exact roots at an end follow the order of `tspan`.
+    @test solve(IntervalNonlinearProblem(linear_fn, (2.0, 1.0), 1.0), NewtonBisection()).retcode == ReturnCode.ExactSolutionRight
+    @test solve(IntervalNonlinearProblem(linear_fn, (1.0, 0.0), 1.0), NewtonBisection()).retcode == ReturnCode.ExactSolutionLeft
 end
 
 @testset "Hard cases" begin
@@ -114,12 +118,31 @@ end
         @test sol.retcode == ReturnCode.Failure
         @test sol.u == nan_at
     end
+end
 
-    # A NaN derivative only makes it bisect.
-    f = IntervalNonlinearFunction(quadratic_f; jac = (u, p) -> u < 3 ? NaN : 2u)
-    sol = solve(IntervalNonlinearProblem(f, (1.0, 20.0), 2.0), NewtonBisection(); abstol = 0.0)
-    @test sol.retcode == ReturnCode.FloatingPointLimit
-    @test sol.left ≤ sqrt(2) ≤ sol.right
+@testset "Derivative $d: bisection" for d in (0.0, Inf, NaN)
+    points = Float64[]
+    f = IntervalNonlinearFunction((u, p) -> (push!(points, u); u - 0.25); jac = (u, p) -> d)
+    prob = IntervalNonlinearProblem(f, (0.0, 1.0))
+    sol = solve(prob, NewtonBisection(); abstol = 0.0, maxiters = 2)
+    @test sol.retcode == ReturnCode.Success
+    @test points == [0.0, 1.0, 0.5, 0.25]
+    # Converged on the last iteration
+    @test solve(prob, NewtonBisection(); abstol = 0.6, maxiters = 1).retcode == ReturnCode.Success
+end
+
+@testset "Mixed precision" begin
+    # Float64 residuals: rounding the points to the Float32 bracket would lose the root.
+    r = 1 + 33 * 2.0^-23 + 2.0^-25
+    f = IntervalNonlinearFunction((u, p) -> (u - r) + 0.001 * (u - r)^2; jac = (u, p) -> 1 + 0.002 * (u - r))
+    sol = @inferred solve(IntervalNonlinearProblem(f, (1.0f0, 2.0f0)), NewtonBisection(); abstol = 3.0e-6)
+    @test sol.retcode == ReturnCode.Success
+    @test sol.left < r < sol.right
+
+    # A derivative wider than the residuals
+    g = IntervalNonlinearFunction((u, p) -> u^2 - 2.0f0; jac = (u, p) -> 2.0 * u)
+    sol = @inferred solve(IntervalNonlinearProblem(g, (1.0f0, 2.0f0)), NewtonBisection(); abstol = 0.0)
+    @test sol.left^2 < 2 < sol.right^2
 end
 
 @testset "$T" for T in (Float32, BigFloat)
@@ -130,18 +153,20 @@ end
 end
 
 @testset "Fewer evaluations than ModAB" begin
-    @testset for (f, df, tspan) in (
-            ((u, p) -> u^2 - 2, (u, p) -> 2u, (1.0, 20.0)),
-            ((u, p) -> exp(u) - 10, (u, p) -> exp(u), (0.0, 5.0)),
-            ((u, p) -> cos(u) - u, (u, p) -> -sin(u) - 1, (0.0, 1.0)),
+    @testset for (f, df, tspan, root) in (
+            ((u, p) -> u^2 - 2, (u, p) -> 2u, (1.0, 20.0), sqrt(2)),
+            ((u, p) -> exp(u) - 10, (u, p) -> exp(u), (0.0, 5.0), log(10)),
+            ((u, p) -> cos(u) - u, (u, p) -> -sin(u) - 1, (0.0, 1.0), 0.7390851332151607),
         )
         calls = Ref(0)
         counted = (u, p) -> (calls[] += 1; f(u, p))
-        solve(IntervalNonlinearProblem(counted, tspan), ModAB(); abstol = 0.0)
+        sol_modab = solve(IntervalNonlinearProblem(counted, tspan), ModAB(); abstol = 0.0)
         modab = calls[]
         calls[] = 0
         prob = IntervalNonlinearProblem(IntervalNonlinearFunction(counted; jac = df), tspan)
-        solve(prob, NewtonBisection(); abstol = 0.0)
+        sol = solve(prob, NewtonBisection(); abstol = 0.0)
+        @test SciMLBase.successful_retcode(sol_modab) && SciMLBase.successful_retcode(sol)
+        @test sol_modab.u ≈ sol.u ≈ root
         @test calls[] < modab
     end
 end
@@ -152,8 +177,9 @@ end
 end
 
 struct NewtonBisectionTestTag end
+const TTag = typeof(Tag(NewtonBisectionTestTag(), Float64))
+
 @testset "Duals in tspan and in f" for p_val in (0.5, 2.0, 5.0)
-    TTag = typeof(Tag(NewtonBisectionTestTag(), Float64))
     p = Dual{TTag}(p_val, Partials((1.0,)))
     f = IntervalNonlinearFunction{false}((t, _) -> 1 - p / 2 * t^2; jac = (t, _) -> -p * t)
     zero_partials = Partials((0.0,))
@@ -162,4 +188,16 @@ struct NewtonBisectionTestTag end
     sol = solve(IntervalNonlinearProblem{false}(f, tspan), NewtonBisection(); abstol = 0.0)
     @test ForwardDiff.value(sol.u) ≈ sqrt(2 / p_val) atol = 1.0e-10
     @test partials(sol.u, 1) ≈ -sqrt(2) / (2 * p_val^(3 / 2)) rtol = 1.0e-3
+end
+
+@testset "Duals in tspan and in f, sensitivity from jac" begin
+    # A secant through a nearby point would leave the domain of `f`, and be inaccurate.
+    p = Dual{TTag}(0.0, Partials((1.0,)))
+    f = IntervalNonlinearFunction{false}(
+        (u, _) -> (abs(u) ≤ 1.0e-9 || throw(DomainError(u)); p + u + 1.0e7 * u^2);
+        jac = (u, _) -> 1 + 2.0e7 * u
+    )
+    tspan = (Dual{TTag}(-1.0e-9, Partials((0.0,))), Dual{TTag}(1.0e-9, Partials((0.0,))))
+    sol = solve(IntervalNonlinearProblem{false}(f, tspan), NewtonBisection(); abstol = 0.0)
+    @test partials(sol.u, 1) ≈ -1
 end

@@ -19,6 +19,9 @@ Recipes does. Once the Newton step is within the tolerance, the next point is pl
 beyond the Newton point, on the other side of the root, so that both ends of the bracket
 converge.
 
+It stops when the bracket is narrower than `abstol`, or its ends are adjacent floats, and
+returns the end with the smaller residual, so `sol.u` is within `abstol` of the root.
+
 Near a simple root the convergence is quadratic, and the method usually needs fewer
 evaluations of `f` than the derivative-free methods. It evaluates the derivative about as
 often as `f`, though, so it is faster only when the derivative costs a small fraction of
@@ -51,18 +54,25 @@ function SciMLBase.__solve(
         left, abstol, promote_type(eltype(left), eltype(right))
     )
 
+    # The exact-solution codes follow the order of `tspan`, not of the sorted bracket.
+    exact = (ReturnCode.ExactSolutionLeft, ReturnCode.ExactSolutionRight)
+    exact_left, exact_right = prob.tspan[1] <= prob.tspan[2] ? exact : reverse(exact)
+
     # The derivative is always evaluated right after `f`, at the same point.
     # A `NaN` residual has no sign, so it can't tell on which side of the root it lies.
     fl = f(left)
+    # The bracket takes the residual type if wider, as in `ModAB`, so it is never rounded.
+    T = float(promote_type(typeof(left), typeof(fl)))
+    left, right = convert(T, left), convert(T, right)
     if iszero(fl)
-        return build_exact_solution(prob, alg, left, fl, ReturnCode.ExactSolutionLeft)
+        return build_exact_solution(prob, alg, left, fl, exact_left)
     end
     isnan(fl) && return build_bracketing_solution(prob, alg, left, fl, left, right, ReturnCode.Failure)
     dfl = df(left)
 
     fr = f(right)
     if iszero(fr)
-        return build_exact_solution(prob, alg, right, fr, ReturnCode.ExactSolutionRight)
+        return build_exact_solution(prob, alg, right, fr, exact_right)
     end
     isnan(fr) && return build_bracketing_solution(prob, alg, right, fr, left, right, ReturnCode.Failure)
     dfr = df(right)
@@ -80,27 +90,26 @@ function SciMLBase.__solve(
     # an end of the bracket.
     x, fx, dfx = abs(fl / dfl) <= abs(fr / dfr) ? (left, fl, dfl) : (right, fr, dfr)
     last_step = older_step = oftype(right - left, Inf)
+    tol = abstol / 2   # so that the bracket closed by Newton is narrower than `abstol`
     k = one(right - left)   # distance beyond the Newton point, in tolerances, once Newton has converged
+    newton_bisection_done(left, right, abstol) &&
+        return newton_bisection_solution(prob, alg, left, right, fl, fr, abstol)
     for _ in 1:maxiters
-        if newton_bisection_done(left, right, abstol)
-            retcode = nextfloat(left) == right ? ReturnCode.FloatingPointLimit : ReturnCode.Success
-            return newton_bisection_solution(prob, alg, left, right, fl, fr, retcode)
-        end
-
         newton = x - fx / dfx
         δ = abs(newton - x)
-        if isfinite(newton) && δ <= max(abstol, 16 * eps(x))
+        # An infinite derivative gives a zero step, which is not convergence.
+        if isfinite(dfx) && δ <= max(tol, 16 * eps(x))
             # `x` is at the root up to the tolerance: close the other end of the bracket,
             # doubling the distance until the sign of `f` changes.
-            δx = k * max(abstol, eps(x))
+            δx = k * max(tol, eps(x))
             t = x == left ? max(newton, x) + δx : min(newton, x) - δx
-            t = clamp(t, nextfloat(left), prevfloat(right))
             k *= 2
         elseif left < newton < right && 2δ <= older_step
             t = newton
         else
             t = safe_midpoint(left, right)
         end
+        t = clamp(convert(T, t), nextfloat(left), prevfloat(right))
         older_step, last_step = last_step, abs(t - x)
 
         ft = f(t)
@@ -115,17 +124,21 @@ function SciMLBase.__solve(
         (t == left) == was_left || (k = one(k))
         x, fx = t, ft
         # The next step needs the derivative only if the bracket can still shrink.
-        newton_bisection_done(left, right, abstol) || (dfx = df(t))
+        newton_bisection_done(left, right, abstol) &&
+            return newton_bisection_solution(prob, alg, left, right, fl, fr, abstol)
+        dfx = df(t)
     end
 
-    return newton_bisection_solution(prob, alg, left, right, fl, fr, ReturnCode.MaxIters)
+    return newton_bisection_solution(prob, alg, left, right, fl, fr, abstol)
 end
 
 # The bracket is within the tolerance, or its ends are adjacent floating-point numbers.
-newton_bisection_done(left, right, abstol) = nextfloat(left) == right || (right - left) / 2 < abstol
+newton_bisection_done(left, right, abstol) = nextfloat(left) == right || right - left < abstol
 
 # The end of the bracket with the smaller residual is the approximate root.
-function newton_bisection_solution(prob, alg, left, right, fl, fr, retcode)
+function newton_bisection_solution(prob, alg, left, right, fl, fr, abstol)
+    retcode = nextfloat(left) == right ? ReturnCode.FloatingPointLimit :
+        right - left < abstol ? ReturnCode.Success : ReturnCode.MaxIters
     u, fu = abs(fl) <= abs(fr) ? (left, fl) : (right, fr)
     return build_bracketing_solution(prob, alg, u, fu, left, right, retcode)
 end

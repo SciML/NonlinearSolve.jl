@@ -73,6 +73,7 @@ end
 # We compute this by evaluating f at the root and a nearby offset point, then applying
 # the secant formula in Dual arithmetic. The offset uses sqrt(ε) spacing so the secant
 # slope is well-conditioned (unlike machine-precision brackets where rounding dominates).
+# If f has a `jac`, ∂f/∂t at the root comes from it instead.
 # Using the same Dual tag T as the tspan avoids introducing a foreign tag that would
 # conflict with the caller's type system (e.g. ODE interpolant buffers typed for T).
 
@@ -104,7 +105,10 @@ for algT in (Bisection, Brent, Alefeld, Falsi, ITP, Ridder, ModAB, NewtonBisecti
         # without type conflicts. The Dual return comes from the closure's state.
         f_at_root = f_orig(sol.u, prob.p)
 
-        if f_at_root isa Dual{T, V, P}
+        if f_at_root isa Dual{T, V, P} && SciMLBase.has_jac(f_orig)
+            # Mixed case, with ∂f/∂t from `jac`
+            partials = ForwardDiff.partials(-f_at_root / f_orig.jac(sol.u, prob.p))
+        elseif f_at_root isa Dual{T, V, P}
             # Mixed case: apply implicit function theorem via Dual secant step.
             # Evaluate f at the root (where f ≈ 0) and a nearby offset point
             # to get an accurate secant slope for df/dt.
