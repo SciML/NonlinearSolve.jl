@@ -53,11 +53,11 @@ In practice when this comes together, it looks like:
 
 ```julia
 import NonlinearSolve as NLS
-import CUDA
+import CUDA: cu
 
 f(u, p) = u .* u .- p
-u0 = CUDA.cu(ones(1000))
-p = CUDA.cu(collect(1:1000))
+u0 = cu(ones(1000))
+p = cu(collect(1:1000))
 prob = NLS.NonlinearProblem(f, u0, p)
 sol = NLS.solve(prob, NLS.NewtonRaphson(), abstol = 1.0f-4)
 ```
@@ -87,15 +87,15 @@ like:
 
 ```julia
 import NonlinearSolve as NLS
-import StaticArrays
+import StaticArrays: SA, @SVector
 import SciMLBase
-import KernelAbstractions # For writing vendor-agnostic kernels
+import KernelAbstractions: @kernel, @Const, @index # For writing vendor-agnostic kernels
 import CUDA # For if you have an NVIDIA GPU
 import AMDGPU # For if you have an AMD GPU
 import Metal # For if you have a Mac M-series device and want to use the built-in GPU
 import OneAPI # For if you have an Intel GPU
 
-KernelAbstractions.@kernel function parallel_nonlinearsolve_kernel!(result, @Const(prob), @Const(alg))
+@kernel function parallel_nonlinearsolve_kernel!(result, @Const(prob), @Const(alg))
     i = @index(Global)
     prob_i = SciMLBase.remake(prob; p = prob.p[i])
     sol = NLS.solve(prob_i, alg)
@@ -140,11 +140,11 @@ Now let's build a nonlinear system to test it on.
     out2 = sqrt(p[2]) * (x[3] - x[4])
     out3 = (x[2] - p[3] * x[3])^2
     out4 = sqrt(p[4]) * (x[1] - x[4]) * (x[1] - x[4])
-    StaticArrays.SA[out1, out2, out3, out4]
+    return SA[out1, out2, out3, out4]
 end
 
-p = StaticArrays.@SVector [StaticArrays.@SVector(rand(Float32, 4)) for _ in 1:1024]
-u0 = StaticArrays.SA[1.0f0, 2.0f0, 3.0f0, 4.0f0]
+p = @SVector [@SVector(rand(Float32, 4)) for _ in 1:1024]
+u0 = SA[1.0f0, 2.0f0, 3.0f0, 4.0f0]
 prob = SciMLBase.ImmutableNonlinearProblem{false}(p2_f, u0, p)
 ```
 
