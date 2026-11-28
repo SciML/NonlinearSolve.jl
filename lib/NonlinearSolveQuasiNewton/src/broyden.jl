@@ -133,21 +133,53 @@ function NonlinearSolveBase.reset_update_rule_state!(cache::BroydenUpdateRuleCac
 end
 
 function InternalAPI.solve!(
+        cache::BroydenUpdateRuleCache, J⁻¹::Number, fu, u, du; kwargs...
+    )
+    dfu = fu - cache.dfu
+    J⁻¹dfu = J⁻¹ * dfu
+    if cache.rule isa GoodBroydenUpdateRule
+        right = conj(du) * J⁻¹
+        denom = dot(du, J⁻¹dfu)
+    else
+        right = conj(dfu)
+        denom = cache.internalnorm(dfu)^2
+    end
+    denom = ifelse(iszero(denom), eltype(u)(1.0e-5), denom)
+    cache.dfu = fu
+    return J⁻¹ + ((du - J⁻¹dfu) / denom) * right
+end
+
+function InternalAPI.solve!(
         cache::BroydenUpdateRuleCache, J⁻¹, fu, u, du; kwargs...
     )
     T = eltype(u)
     @bb @. cache.dfu = fu - cache.dfu
     @bb cache.J⁻¹dfu = J⁻¹ × vec(cache.dfu)
     if cache.rule isa GoodBroydenUpdateRule
-        @bb cache.u_cache = transpose(J⁻¹) × vec(du)
+        # Transposing this column gives the right factor du' * J⁻¹.
+        if eltype(du) <: Real
+            right_step = du
+        else
+            @bb @. cache.du_cache = conj(du)
+            right_step = cache.du_cache
+        end
+        @bb cache.u_cache = transpose(J⁻¹) × vec(right_step)
         denom = dot(du, cache.J⁻¹dfu)
         rmul = transpose(Utils.safe_vec(cache.u_cache))
     else
         denom = cache.internalnorm(cache.dfu)^2
         rmul = transpose(Utils.safe_vec(cache.dfu))
     end
-    @bb @. cache.du_cache = (du - cache.J⁻¹dfu) / ifelse(iszero(denom), T(1.0e-5), denom)
-    @bb J⁻¹ += vec(cache.du_cache) × rmul
+    denom = ifelse(iszero(denom), T(1.0e-5), denom)
+    @bb @. cache.du_cache = (du - cache.J⁻¹dfu) / denom
+    if J⁻¹ isa Matrix{<:Complex} && eltype(du) <: Complex &&
+            cache.du_cache isa Array && parent(rmul) isa Vector
+        for j in axes(J⁻¹, 2), i in axes(J⁻¹, 1)
+            J⁻¹[i, j] += cache.du_cache[i] * rmul[j]
+        end
+    else
+        @bb J⁻¹ += vec(cache.du_cache) × rmul
+    end
     @bb copyto!(cache.dfu, fu)
     return J⁻¹
 end
@@ -159,14 +191,14 @@ function InternalAPI.solve!(
     @bb @. cache.dfu = fu - cache.dfu
     J⁻¹_diag = Utils.restructure(cache.dfu, diag(J⁻¹))
     if cache.rule isa GoodBroydenUpdateRule
-        @bb @. cache.J⁻¹dfu = J⁻¹_diag * cache.dfu * du
-        denom = sum(cache.J⁻¹dfu)
-        @bb @. J⁻¹_diag += (du - cache.J⁻¹dfu) * du * J⁻¹_diag /
-            ifelse(iszero(denom), T(1.0e-5), denom)
+        @bb @. cache.J⁻¹dfu = J⁻¹_diag * cache.dfu
+        denom = dot(du, cache.J⁻¹dfu)
+        denom = ifelse(iszero(denom), T(1.0e-5), denom)
+        @bb @. J⁻¹_diag += (du - cache.J⁻¹dfu) * conj(du) * J⁻¹_diag / denom
     else
         denom = cache.internalnorm(cache.dfu)^2
-        @bb @. J⁻¹_diag += (du - J⁻¹_diag * cache.dfu) * cache.dfu /
-            ifelse(iszero(denom), T(1.0e-5), denom)
+        denom = ifelse(iszero(denom), T(1.0e-5), denom)
+        @bb @. J⁻¹_diag += (du - J⁻¹_diag * cache.dfu) * cache.dfu / denom
     end
     @bb copyto!(cache.dfu, fu)
     return Diagonal(vec(J⁻¹_diag))

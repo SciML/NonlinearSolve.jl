@@ -1,0 +1,93 @@
+@testset "Safe-best Newton retains the first iterate with unit residual" begin
+    f(u, p) = exp.(u) .+ 1.0f0
+    jac(u, p) = diagm(0 => exp.(u))
+    function run_safe_best(u)
+        return solve(
+            NonlinearProblem(NonlinearFunction(f; jac), u), NewtonRaphson(); maxiters = 8
+        )
+    end
+    u0 = Float32[1]
+    expected = only(u0)
+    for _ in 1:3
+        expected -= (exp(expected) + 1.0f0) / exp(expected)
+    end
+    @test exp(expected) + 1.0f0 == 1.0f0
+    host = run_safe_best(u0)
+    compiled = Reactant.@jit run_safe_best(Reactant.to_rarray(u0))
+    @test host.retcode == compiled.retcode == ReturnCode.MaxIters
+    @test only(host.u) ≈ expected
+    @test only(Array(compiled.u)) ≈ expected
+    @test Array(compiled.u) ≈ host.u
+    @test Array(compiled.resid) == host.resid == Float32[1]
+end
+
+@testset "Plain absolute norm continues with nonfinite residuals" begin
+    f(u, p) = u .- p
+    jac(u, p) = diagm(0 => one.(u))
+    function run_plain(u, p)
+        return solve(
+            NonlinearProblem(NonlinearFunction(f; jac), u, p), NewtonRaphson();
+            termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs)), maxiters = 3
+        )
+    end
+    u, p = Float32[1], Float32[NaN]
+    host = run_plain(u, p)
+    compiled = Reactant.@jit run_plain(Reactant.to_rarray(u), Reactant.to_rarray(p))
+    @test host.retcode == compiled.retcode == ReturnCode.MaxIters
+    @test all(isnan, host.resid)
+    @test all(isnan, Array(compiled.resid))
+end
+
+@testset "Diagonal cubic Broyden with plain-norm termination" begin
+    residual(x, y) = x .^ 3 .- y
+    function run_cubic(u, p)
+        return solve(
+            NonlinearProblem(residual, u, p), Broyden(; update_rule = Val(:diagonal));
+            maxiters = 50, abstol = 1.0f-5,
+            termination_condition = AbsNormTerminationMode(Base.Fix1(maximum, abs))
+        )
+    end
+    u = Float32[3, -2]
+    @testset for (p, code) in ((Float32[2], ReturnCode.Success), (Float32[NaN], ReturnCode.MaxIters))
+        rp = Reactant.to_rarray(p)
+        host = run_cubic(u, p)
+        compiled = Reactant.@jit run_cubic(Reactant.to_rarray(u), rp)
+        @test host.retcode == compiled.retcode == code
+        @test isequal(Array(compiled.u), host.u)
+        @test isequal(host.resid, residual(host.u, p))
+        @test isequal(Array(compiled.resid), Array(Reactant.@jit residual(compiled.u, rp)))
+        if code == ReturnCode.Success
+            @test maximum(abs, host.resid) <= 1.0f-5
+            @test maximum(abs, Array(compiled.resid)) <= 1.0f-5
+        else
+            @test isequal(Array(compiled.resid), host.resid)
+            @test all(isnan, host.resid)
+        end
+    end
+end
+
+@testset "Combined norm stops on the absolute or relative threshold" begin
+    f(u, p) = u .* u .- 2
+    jac(u, p) = Diagonal(2 .* u)
+    function solve_combined(u, abstol, reltol)
+        cache = init(
+            NonlinearProblem(NonlinearFunction(f; jac), u), NewtonRaphson();
+            termination_condition = NormTerminationMode(Base.Fix1(maximum, abs)), abstol, reltol
+        )
+        sol = solve!(cache)
+        return sol.retcode, NonlinearSolveBase.get_nsteps(cache)
+    end
+    u = Float32[1]
+    for (abstol, reltol, steps) in ((0.25f0, 0.0f0, 1), (0.0f0, 0.01f0, 2))
+        host = solve_combined(u, abstol, reltol)
+        compiled = Reactant.@jit solve_combined(Reactant.to_rarray(u), abstol, reltol)
+        @test host[1] == compiled[1] == ReturnCode.Success
+        @test host[2] == Int(compiled[2]) == steps
+    end
+end
+
+@testset "Scalar termination scratch" begin
+    x = Reactant.ConcreteRNumber(2.0f0)
+    scratch = Reactant.@jit NonlinearSolveBase.alloc_u_diff_cache(x)
+    @test Float32(scratch) === 0.0f0
+end

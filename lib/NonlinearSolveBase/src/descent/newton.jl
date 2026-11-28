@@ -25,6 +25,7 @@ end
 
 @internal_caches NewtonDescentCache :lincache
 
+
 function InternalAPI.init(
         prob::AbstractNonlinearProblem, alg::NewtonDescent, J, fu, u; stats,
         shared = Val(1), pre_inverted::Val = Val(false), linsolve_kwargs = (;),
@@ -135,7 +136,11 @@ function InternalAPI.solve!(
         end
     end
 
-    @bb @. δu *= -1
+    if u isa Number
+        δu = -δu
+    else
+        @bb @. δu *= -1
+    end
     set_du!(cache, δu, idx)
     return DescentResult(; δu)
 end
