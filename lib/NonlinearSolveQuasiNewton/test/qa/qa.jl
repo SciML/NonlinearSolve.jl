@@ -1,5 +1,23 @@
-using SciMLTesting, NonlinearSolveQuasiNewton, Test
+using Pkg, SciMLTesting, NonlinearSolveQuasiNewton, TOML, Test
 
+@testset "NonlinearSolveBase compatibility" begin
+    project = TOML.parsefile(pkgdir(NonlinearSolveQuasiNewton, "Project.toml"))
+    base = "NonlinearSolveBase"
+    active_project = dirname(Base.active_project())
+    mktempdir() do environment
+        open(joinpath(environment, "Project.toml"), "w") do io
+            TOML.print(io, Dict(section => Dict(base => project[section][base]) for section in ("deps", "compat")))
+        end
+        try
+            Pkg.activate(environment; io = devnull)
+            @test_throws "empty intersection between NonlinearSolveBase@2.55.1 and project compatibility" Pkg.add(
+                PackageSpec(; name = base, version = v"2.55.1"); io = devnull
+            )
+        finally
+            Pkg.activate(active_project; io = devnull)
+        end
+    end
+end
 
 const QUASI_NEWTON_EXTERNAL_REEXPORTS = union(
     public_api_names(NonlinearSolveQuasiNewton.SciMLBase),

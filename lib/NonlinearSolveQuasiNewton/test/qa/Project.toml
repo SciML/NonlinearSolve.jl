@@ -2,7 +2,9 @@
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 NonlinearSolveBase = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
 NonlinearSolveQuasiNewton = "9a2c21bd-3a47-402d-9113-8faf9a0ee114"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -12,6 +14,8 @@ NonlinearSolveBase = {path = "../../../NonlinearSolveBase"}
 Aqua = "0.8"
 NonlinearSolveBase = "2.20"
 NonlinearSolveQuasiNewton = "1.12"
+Pkg = "1.10"
 SciMLTesting = "2.8"
+TOML = "1"
 Test = "1.10"
 julia = "1.10"
